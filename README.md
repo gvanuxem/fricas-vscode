@@ -4,13 +4,13 @@ FriCAS language server for Visual Studio Code
 
 ## Functionality
 
-This extension contributes a new language, `fricas` which represents the `SPAD` and `input` languages.
+This extension contributes a virtual language, `fricas` which is the union of `SPAD` and `input` languages.
 
 - Basic autocompletion
 - Syntax highlighting
 - Code folding
-- Executing piece of code or full file in input mode (CodeRunner plugin required for now)
-- Algebra library compilation (CodeRunner plugin required for now)
+- Executing snippets or file content in input mode (CodeRunner plugin required)
+- Algebra library compilation (CodeRunner plugin required)
 
 ![FriCAS-VSCode](https://user-images.githubusercontent.com/42774576/116650597-c7a09f80-a981-11eb-8472-bc5bd3d0cf69.png)
 
@@ -23,3 +23,5 @@ This extension contributes a new language, `fricas` which represents the `SPAD` 
 - Select `Launch Client` from the drop down.
 - Run the launch config.
 - If you want to debug the server as well use the launch configuration `Attach to Server`
+
+Note that if VS Code doesn't compile the extension, install globally `vsce` with `npm install -g vsce` and create a `.vix` installable package with, in fricas-vscode directory, `vsce package`.
