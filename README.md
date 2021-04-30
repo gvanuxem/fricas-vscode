@@ -1,18 +1,18 @@
-# Embedded FriCAS Languages using Language Service
+# A language server for FriCAS
 
 FriCAS language server for Visual Studio Code
 
 ## Functionality
 
-This extension contributes a new language, `fricas`.
+This extension contributes a new language, `fricas`, `SPAD` and `input` language.
 
 - Basic autocompletion
-
-This Language Server works for `spad` and `input` files.
-
 - Syntax highlighting
-- Completions based on open files (seen as a project)
 - Code folding
+- Executing piece of code or full file in input mode (CodeRunner plugin required for now)
+- Algebra library compilation (CodeRunner plugin required for now)
+
+![FriCAS-VSCode](https://user-images.githubusercontent.com/42774576/116650597-c7a09f80-a981-11eb-8472-bc5bd3d0cf69.png)
 
 ## Running the server
 
