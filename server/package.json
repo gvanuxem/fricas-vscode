@@ -1,0 +1,19 @@
+{
+	"name": "fricas-server",
+	"description": "FriCAS language server in node.",
+	"version": "1.0.0",
+	"author": "Microsoft Corporation & Gregory Vanuxem",
+	"license": "MIT",
+	"engines": {
+		"node": "*"
+	},
+	"repository": {
+		"type": "git",
+		"url": ""
+	},
+	"dependencies": {
+		"vscode-languageserver": "^6.1.1",
+		"vscode-languageserver-textdocument": "^1.0.1"
+	},
+	"scripts": {}
+}

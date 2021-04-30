@@ -1,0 +1,297 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "fricas",
+  "scopeName": "source.fricas",
+  "patterns": [
+    {
+      "include": "#line_comments"
+    },
+    {
+      "include": "#string_quoted_double"
+    },
+    {
+      "include": "#name_class"
+    },
+    {
+      "include": "#name_function"
+    },
+    {
+      "match": "\\b(category|domain|package)\\b",
+      "name": "storage.type.primitive.fricas"
+    },
+    {
+      "match": "\\b(?i:(\\d+\\.\\d*(e[\\-\\+]?\\d+)?))(?=[^a-zA-Z_])",
+      "name": "constant.numeric.float.fricas"
+    },
+    {
+      "match": "(?<=[^0-9a-zA-Z_])(?i:(\\.\\d+(e[\\-\\+]?\\d+)?))",
+      "name": "constant.numeric.float.fricas"
+    },
+    {
+      "match": "\\b(?i:(\\d+e[\\-\\+]?\\d+))",
+      "name": "constant.numeric.float.fricas"
+    },
+    {
+      "match": "\\b([1-9]+[0-9]*|0)",
+      "name": "constant.numeric.integer.decimal.fricas"
+    },
+    {
+      "captures": {
+        "1": {
+          "name": "keyword.control.import.fricas"
+        },
+        "2": {
+          "name": "keyword.control.import.from.fricas"
+        }
+      },
+      "match": "\\b(?:(import)|(from))\\b"
+    },
+    {
+      "comment": "keywords that delimit flow conditionals",
+      "name": "keyword.control.conditional.fricas",
+      "match": "\\b(if|then|else|\\=>)\\b"
+    },
+    {
+      "comment": "keywords that delimit loops",
+      "name": "keyword.control.repeat.fricas",
+      "match": "\\b(for|in|while|repeat)\\b"
+    },
+    {
+      "comment": "keywords that alter flow from within a block",
+      "name": "keyword.control.statement.fricas",
+      "match": "\\b(break|continue|return|yield)\\b"
+    },
+    {
+      "name": "keyword.operator.logical.fricas",
+      "match": "\\b(and|in|is|not|or|has|case)\\b"
+    },
+    {
+      "name": "keyword.operator.comparison.fricas",
+      "match": "\\=|<\\=|>\\=|\\=\\=|<|>|\\^\\="
+    },
+    {
+      "match": "\\+|\\-|\\*|\\*\\*|/|&|\\||\\^|~",
+      "name": "keyword.operator.arithmetic.fricas"
+    },
+    {
+      "match": "\\=|\\:\\=",
+      "name": "keyword.operator.assignment.fricas"
+    },
+    {
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.list.begin.fricas"
+        },
+        "2": {
+          "name": "meta.empty-list.fricas"
+        },
+        "3": {
+          "name": "punctuation.definition.list.end.fricas"
+        }
+      },
+      "match": "(\\[)(\\s*(\\]))\\b"
+    },
+    {
+      "begin": "(\\[)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.list.begin.fricas"
+        }
+      },
+      "end": "(\\])",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.list.end.fricas"
+        }
+      },
+      "name": "meta.structure.list.fricas",
+      "patterns": [
+        {
+          "begin": "(?<=\\[|\\,)\\s*(?![\\],])",
+          "contentName": "meta.structure.list.item.fricas",
+          "end": "\\s*(?:(,)|(?=\\]))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.separator.list.fricas"
+            }
+          },
+          "patterns": [
+            {
+              "include": "%"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tuple.begin.fricas"
+        },
+        "2": {
+          "name": "meta.empty-tuple.fricas"
+        },
+        "3": {
+          "name": "punctuation.definition.tuple.end.fricas"
+        }
+      },
+      "match": "(\\()(\\s*(\\)))",
+      "name": "meta.structure.tuple.fricas"
+    },
+    {
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.dictionary.begin.fricas"
+        },
+        "2": {
+          "name": "meta.empty-dictionary.fricas"
+        },
+        "3": {
+          "name": "punctuation.definition.dictionary.end.fricas"
+        }
+      },
+      "match": "(\\{)(\\s*(\\}))",
+      "name": "meta.structure.dictionary.fricas"
+    },
+    {
+      "begin": "(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.set.begin.fricas"
+        }
+      },
+      "end": "(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.set.end.fricas"
+        }
+      },
+      "name": "meta.structure.set.fricas",
+      "patterns": [
+        {
+          "begin": "(?<=\\{|\\,|^)\\s*(?![\\},])",
+          "contentName": "meta.structure.set.key.fricas",
+          "end": "\\s*(?:(?=\\})|(\\:))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.separator.valuepair.dictionary.fricas"
+            }
+          },
+          "patterns": [
+            {
+              "include": "%"
+            }
+          ]
+        },
+        {
+          "begin": "(?<=\\:|^)\\s*",
+          "contentName": "meta.structure.dictionary.value.fricas",
+          "end": "\\s*(?:(?=\\})|(,))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.separator.dictionary.fricas"
+            }
+          },
+          "patterns": [
+            {
+              "include": "%"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "include": "#function_name"
+    }
+  ],
+  "repository": {
+    "name_class": {
+      "match": "(?x)\\b(Category|Domain|Package)\\b",
+      "name": "entity.name.class.fricas"
+    },
+    "name_function": {
+      "match": "(?x)\\b(add|Join|with)\\b",
+      "name": "support.function.builtin.fricas"
+    },
+    "builtin_functions": {
+      "match": "(?x)\\b(abs|all|any|complex|divmod|enumerate|eval|float|hash|integer|\\#|list|map|max|min|ord|pow|property|round|set|sum|typeOf|zip|reduce|apply|coerce)\\b",
+      "name": "support.function.builtin.fricas"
+    },
+    "builtin_types": {
+      "match": "(?x)\\b(Record|Union|Symbol|List)\\b",
+      "name": "support.type.fricas"
+    },
+    "line_comments": {
+      "begin": "(^[ \\t]+)?(?=(--|\\+\\+))",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.whitespace.comment.leading.fricas"
+        }
+      },
+      "end": "(?!\\G)",
+      "patterns": [
+        {
+          "begin": "(--|\\+\\+)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.fricas"
+            }
+          },
+          "end": "\\n",
+          "name": "comment.line.number-sign.fricas"
+        }
+      ]
+    },
+    "generic_names": {
+      "match": "[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "function_name": {
+      "patterns": [
+        {
+          "include": "#generic_names"
+        }
+      ]
+    },
+    "language_variables": {
+      "match": "\\b(Rep)\\b",
+      "name": "variable.language.self.fricas"
+    },
+    "line_continuation": {
+      "captures": {
+        "1": {
+          "name": "punctuation.separator.continuation.line.fricas"
+        },
+        "2": {
+          "name": "invalid.illegal.unexpected-text.fricas"
+        }
+      },
+      "match": "(_)(.*)$\\n?"
+    },
+    "string_quoted_double": {
+      "patterns": [
+        {
+          "begin": "(\")",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.begin.fricas"
+            }
+          },
+          "comment": "double quoted string",
+          "end": "((?<=\")(\")|\")|(\\\\n)",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.fricas"
+            },
+	    "2": {
+	      "name": "meta.empty-string.double.fricas"
+	    },
+            "3": {
+              "name": "invalid.illegal.unclosed-string.fricas"
+            }
+          },
+          "name": "string.quoted.double.single-line.fricas"
+        }
+      ]
+    }
+  }
+}
