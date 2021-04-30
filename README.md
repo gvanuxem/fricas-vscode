@@ -4,7 +4,7 @@ FriCAS language server for Visual Studio Code
 
 ## Functionality
 
-This extension contributes a new language, `fricas`, `SPAD` and `input` language.
+This extension contributes a new language, `fricas` which represents the `SPAD` and `input` languages.
 
 - Basic autocompletion
 - Syntax highlighting
