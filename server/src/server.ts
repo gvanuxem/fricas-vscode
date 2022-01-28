@@ -25,7 +25,7 @@ let documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 connection.onInitialize((_params: InitializeParams) => {
 
-	documents.onDidClose(e => {
+	documents.onDidClose(() => {
 	});
 	connection.onShutdown(() => {
 	});
@@ -43,13 +43,13 @@ connection.onInitialize((_params: InitializeParams) => {
 
 connection.onInitialized(() => {});
 
-connection.onDidChangeConfiguration(_change => {
-});
+//connection.onDidChangeConfiguration(change => {
+//});
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(change => {
-});
+//documents.onDidChangeContent(change => {
+//});
 
 connection.onCompletion(async (textDocumentPosition, token) => {
 	const document = documents.get(textDocumentPosition.textDocument.uri);
