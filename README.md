@@ -9,7 +9,7 @@ This extension contributes a virtual language, `fricas` which is the union of `S
 - Basic autocompletion
 - Syntax highlighting
 - Code folding
-- Executing snippets or file content in input mode (CodeRunner plugin required)
+- Execute snippets or file content in input mode (CodeRunner plugin required)
 - Algebra library compilation (CodeRunner plugin required)
 
 ![FriCAS-VSCode](https://user-images.githubusercontent.com/42774576/116650597-c7a09f80-a981-11eb-8472-bc5bd3d0cf69.png)
