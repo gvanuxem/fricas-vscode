@@ -2,14 +2,16 @@
 
 [![Build](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml/badge.svg)](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml)
 
-This [VS Code](https://code.visualstudio.com) extension provides support for the [FriCAS Computer Algebra Software](https://fricas.github.io/).
+This [VS Code](https://code.visualstudio.com) extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/).
 
 ## Getting started
 
 ### Installing FriCAS/VS Code/VS Code FriCAS extension
 1. Install FriCAS for your platform: https://github.com/fricas/fricas/releases/
-2. Install VS Code for your platform: https://code.visualstudio.com/download
-    At the end of this step you should be able to start VS Code.
+2. Install VS Code for your platform: https://code.visualstudio.com/download or
+    install the open source version, on a Debian like system issue
+    <code>apt install code-oss</code> in a terminal. At the end of this step you
+    should be able to start VS Code.
 3.  1. Start VS Code.
     2. Inside VS Code, go to the extensions view either by
         executing the ``View: Show Extensions`` command (click View->Command Palette...)
