@@ -1,0 +1,455 @@
+{
+  "comment": "This grammar is used by Atom (Oniguruma), GitHub (PCRE), and VSCode (Oniguruma),\nso all regexps must be compatible with both engines.\n\nSpecs:\n- https://github.com/kkos/oniguruma/blob/master/doc/RE\n- https://www.pcre.org/current/doc/html/",
+  "fileTypes": [
+    "fricas"
+  ],
+  "name": "FriCAS",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#comment_block"
+    },
+    {
+      "include": "#array"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#parentheses"
+    },
+    {
+      "include": "#bracket"
+    },
+    {
+      "match": "\\b(category|domain|package|where|with|add|abbrev)\\b",
+      "name": "storage.type.primitive.fricas"
+    },
+    {
+      "comment": "keywords that delimit flow conditionals",
+      "name": "keyword.control.conditional.fricas",
+      "match": "\\b(if|then|else|case)\\b"
+    },
+    {
+      "comment": "keywords that delimit loops",
+      "name": "keyword.control.repeat.fricas",
+      "match": "\\b(for|in|while|repeat|by)\\b"
+    },
+    {
+      "comment": "keywords that alter flow from within a block",
+      "name": "keyword.control.statement.fricas",
+      "match": "\\b(break|continue|return|yield|iterate|error)\\b"
+    },
+    {
+      "name": "keyword.operator.logical.fricas",
+      "match": "\\b(and|in|is|isnt|not|or|has)\\b"
+    },
+    {
+      "name": "keyword.operator.comparison.fricas",
+      "match": "\\=|<\\=|>\\=|<|>|~\\="
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#function_decl"
+    },
+    {
+      "include": "#function_call"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#type_decl"
+    },
+    {
+      "include": "#symbol"
+    }
+  ],
+  "repository": {
+    "array": {
+      "patterns": [
+        {
+          "begin": "\\[",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.bracket.fricas"
+            }
+          },
+          "end": "(\\])((?:\\.)?'*)",
+          "endCaptures": {
+            "1": {
+              "name": "meta.bracket.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.transpose.fricas"
+            }
+          },
+          "name": "meta.array.fricas",
+          "patterns": [
+            {
+              "match": "\\bbegin\\b",
+              "name": "constant.numeric.fricas"
+            },
+            {
+              "match": "\\bend\\b",
+              "name": "constant.numeric.fricas"
+            },
+            {
+              "match": "\\bfor\\b",
+              "name": "keyword.control.fricas"
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "parentheses": {
+      "patterns": [
+        {
+          "begin": "\\(",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.bracket.fricas"
+            }
+          },
+          "end": "(\\))((?:\\.)?'*)",
+          "endCaptures": {
+            "1": {
+              "name": "meta.bracket.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.transpose.fricas"
+            }
+          },
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "bracket": {
+      "patterns": [
+        {
+          "match": "(?:\\(|\\)|\\[|\\]|\\{|\\}|,|;)(?!('|(?:\\.'))*\\.?')",
+          "name": "meta.bracket.fricas"
+        }
+      ]
+    },
+    "comment": {
+      "patterns": [
+        {
+          "include": "#comment_block"
+        },
+        {
+          "begin": "(?:--|\\+\\+)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.fricas"
+            }
+          },
+          "end": "\\n",
+          "name": "comment.line.number-sign.fricas"
+        }
+      ]
+    },
+    "comment_block": {
+      "patterns": [
+        {
+          "begin": "\\)if false",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.begin.fricas"
+            }
+          },
+          "end": "\\)endif",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.end.fricas"
+            }
+          },
+          "name": "comment.block.number-sign-equals.fricas",
+          "patterns": [
+            {
+              "include": "#comment_block"
+            }
+          ]
+        }
+      ]
+    },
+    "function_call": {
+      "patterns": [
+        {
+          "begin": "((?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_![:word:]_\\?\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)({(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})?\\??(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.fricas"
+            },
+            "2": {
+              "name": "support.type.fricas"
+            },
+            "3": {
+              "name": "meta.bracket.fricas"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "meta.bracket.fricas"
+            }
+          },
+          "patterns": [
+            {
+              "match": "\\bfor\\b",
+              "name": "keyword.control.fricas"
+            },
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "function_decl": {
+      "patterns": [
+        {
+          "captures": {
+            "1": {
+              "name": "entity.name.function.fricas"
+            },
+            "2": {
+              "name": "support.type.fricas"
+            }
+          },
+          "match": "((?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}\u003F⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)({(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})?(?=\\([^#]*\\)(::[^\\s]+)?(\\s*\\bwhere\\b\\s+.+?)?\\s*?=(?![=>]))",
+          "comment": "first group is function name\nSecond group is type parameters (e.g. {T<:Number, S})\nThen open parens\nThen a lookahead ensures that we are followed by:\n  - anything (function arguments)\n  - 0 or more spaces\n  - Finally an equal sign\nNegative lookahead ensures we don't have another equal sign (not `==`)"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "keyword.other.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.dots.fricas"
+            },
+            "3": {
+              "name": "entity.name.function.fricas"
+            },
+            "4": {
+              "name": "support.type.fricas"
+            }
+          },
+          "match": "\\b(function|macro)(?:\\s+(?:(?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*(\\.))?((?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)({(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})?|\\s*)(?=\\()",
+          "comment": "similar regex to previous, but with keyword not 1-line syntax"
+        }
+      ]
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "match": "\\b(?<![:_])(?:local)\\b",
+          "name": "keyword.storage.modifier.fricas"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "keyword.control.import.fricas"
+            },
+            "2": {
+              "name": "keyword.control.import.from.fricas"
+            }
+          },
+          "match": "\\b(?:(import)|(from))\\b"
+        },
+        {
+          "match": "(@(\\.|(?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*))",
+          "name": "support.function.macro.fricas"
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "match": "((?<!(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿]))(?:(?:\\b0(?:x|X)[0-9a-fA-F](?:_?[0-9a-fA-F])*)|(?:\\b0o[0-7](?:_?[0-7])*)|(?:\\b0b[0-1](?:_?[0-1])*)|(?:(?:\\b[0-9](?:_?[0-9])*\\.?(?!\\.)(?:[_0-9]*))|(?:\\b\\.[0-9](?:_?[0-9])*))(?:[efE][+-]?[0-9](?:_?[0-9])*)?(?:im\\b|Inf(?:16|32|64)?\\b|NaN(?:16|32|64)?\\b|π\\b|pi\\b|ℯ\\b)?|\\b[0-9]+|\\bInf(?:16|32|64)?\\b|\\bNaN(?:16|32|64)?\\b|\\bπ\\b|\\bpi\\b|\\bℯ\\b))('*)",
+          "captures": {
+            "1": {
+              "name": "constant.numeric.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.conjugate-number.fricas"
+            }
+          }
+        },
+        {
+          "match": "\\btrue\\b|\\bfalse\\b",
+          "name": "constant.language.fricas"
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "match": "(?:->|\\+->)",
+          "name": "keyword.operator.arrow.fricas"
+        },
+        {
+          "match": "(?::=|\\+=|-=|\\*=|//=|/=|\\.//=|\\./=|\\.\\*=|\\\\=|\\.\\\\=|\\^=|\\.\\^=|%=|\\.%=|÷=|\\.÷=|\\|=|&=|\\.&=|⊻=|\\.⊻=|\\$=|<<=|>>=|>>>=|=(?!=))",
+          "name": "keyword.operator.update.fricas"
+        },
+        {
+          "match": "(?:<<|>>)",
+          "name": "keyword.operator.shift.fricas"
+        },
+        {
+          "match": "(?:\\s*(::|>:|<:)\\s*((?:(?:Union)?\\([^)]*\\)|[[:alpha:]_$∇][[:word:]⁺-ₜ!′\\.]*(?:(?:{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})|(?:\".+?(?<!\\\\)\"))?)))(?:\\.\\.\\.)?",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.relation.types.fricas"
+            },
+            "2": {
+              "name": "support.type.fricas"
+            }
+          }
+        },
+        {
+          "match": "(?:∈|\\.∈|∉|\\.∉|∋|\\.∋|∌|\\.∌|≈|\\.≈|≉|\\.≉|≠|\\.≠|≡|\\.≡|≢|\\.≢|⊆|\\.⊆|⊇|\\.⊇|⊈|\\.⊈|⊉|\\.⊉|⊊|\\.⊊|⊋|\\.⊋|\\.==|!==|!=|\\.>=|\\.>|\\.<=|\\.<|\\.≤|\\.≥|==|\\.!=|\\.=|\\.!|<:|>:|:>|(?<!>)>=|(?<!<)<=|>|<|≥|≤)",
+          "name": "keyword.operator.relation.fricas"
+        },
+        {
+          "match": "(?<=\\s)(?:\\?)(?=\\s)",
+          "name": "keyword.operator.ternary.fricas"
+        },
+        {
+          "match": "(?<=\\s)(?:\\:)(?=\\s)",
+          "name": "keyword.operator.ternary.fricas"
+        },
+        {
+          "match": "(?:\\|\\||&&|(?<!(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿]))!)",
+          "name": "keyword.operator.boolean.fricas"
+        },
+        {
+          "match": "\\.\\.",
+          "name": "keyword.operator.range.fricas"
+        },
+        {
+          "match": "(?:\\+|\\.\\+|-|\\.\\-|\\*|\\.\\*|//(?!=)|\\.//(?!=)|/|\\./|%|\\.%|\\\\|\\.\\\\|\\^|\\.\\^|÷|\\.÷|⋅|\\.⋅|∩|\\.∩|∪|\\.∪|×|√|∛)",
+          "name": "keyword.operator.arithmetic.fricas"
+        },
+        {
+          "match": "(?:(?<=\\s)in(?=\\s))",
+          "name": "keyword.operator.relation.in.fricas"
+        },
+        {
+          "match": "(?:\\.(?=(?:@|_|\\p{L}))|\\.\\.+)",
+          "name": "keyword.operator.dots.fricas"
+        },
+        {
+          "match": "(?:\\$)(?=.+)",
+          "name": "keyword.operator.interpolation.fricas"
+        },
+        {
+          "captures": {
+            "2": {
+              "name": "keyword.operator.transposed-variable.fricas"
+            }
+          },
+          "match": "((?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)(('|(\\.'))*\\.?')"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "bracket.end.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.transposed-matrix.fricas"
+            }
+          },
+          "match": "(\\])((?:'|(?:\\.'))*\\.?')"
+        },
+        {
+          "captures": {
+            "1": {
+              "name": "bracket.end.fricas"
+            },
+            "2": {
+              "name": "keyword.operator.transposed-parens.fricas"
+            }
+          },
+          "match": "(\\))((?:'|(?:\\.'))*\\.?')"
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.fricas",
+          "begin": "\"(?!\"\")",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.fricas"
+            }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.fricas"
+            }
+          },
+          "comment": "String with single pair of double quotes.",
+          "patterns": [
+            {
+              "include": "#string_escaped_char"
+            }
+          ]
+        }
+      ]
+    },
+    "string_escaped_char": {
+      "patterns": [
+        {
+          "match": "_\"",
+          "name": "constant.character.escape.fricas"
+        }
+      ]
+    },
+    "symbol": {
+      "patterns": [
+        {
+          "match": "(?<![[:word:]⁺-ₜ!′∇\\)\\]\\}]):(?:(?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)(?!(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿]))(?![\"`'])",
+          "name": "constant.other.symbol.fricas",
+          "comment": "This is string.quoted.symbol.fricas in tpoisot's package"
+        }
+      ]
+    },
+    "type_decl": {
+      "patterns": [
+        {
+          "captures": {
+            "1": {
+              "name": "entity.name.type.fricas"
+            },
+            "2": {
+              "name": "entity.other.inherited-class.fricas"
+            },
+            "3": {
+              "name": "punctuation.separator.inheritance.fricas"
+            }
+          },
+          "match": "(?>!:_)(?:struct|pretend\\s+struct|abstract\\s+type|primitive\\s+type)\\s+((?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*)(\\s*(<:)\\s*(?:[[:alpha:]_\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{So}←-⇿])(?:[[:word:]_!\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lm}\\p{Lo}\\p{Nl}\\p{Sc}⅀-⅄∿⊾⊿⊤⊥∂∅-∇∎∏∐∑∞∟∫-∳⋀-⋃◸-◿♯⟘⟙⟀⟁⦰-⦴⨀-⨆⨉-⨖⨛⨜𝛁𝛛𝛻𝜕𝜵𝝏𝝯𝞉𝞩𝟃ⁱ-⁾₁-₎∠-∢⦛-⦯℘℮゛-゜𝟎-𝟡]|[^\\P{Mn}\u0001-¡]|[^\\P{Mc}\u0001-¡]|[^\\P{Nd}\u0001-¡]|[^\\P{Pc}\u0001-¡]|[^\\P{Sk}\u0001-¡]|[^\\P{Me}\u0001-¡]|[^\\P{No}\u0001-¡]|[′-‷⁗]|[^\\P{So}←-⇿])*(?:{.*})?)?",
+          "name": "meta.type.fricas"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.fricas"
+}

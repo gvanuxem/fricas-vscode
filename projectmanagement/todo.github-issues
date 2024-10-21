@@ -1,0 +1,87 @@
+[
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "# My TODO list\n\nThis notebook gives you a quick overview of things you need to do."
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Showstoppers\n\nThis section will show any showstoppers. If we have any, we all try to help out to resolve those first."
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode label:Showstopper is:open"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Review requests\n\nThese are PRs that are waiting for reviews from you."
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode review-requested:@me is:open draft:false"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Bugs assigned to me"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Should be done ASAP\n\nPlease, please, try to fix them as soon as possible :)"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode is:open is:issue label:bug assignee:@me milestone:\"Next Bugfix Release\""
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Triage\n\nMake a decision whether this should go onto the Backlog or the next patch release."
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode is:open is:issue label:bug assignee:@me milestone:Triage"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Backlog\n\nMaybe, at some point, if you feel like it, you could try to fix these."
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode is:open is:issue label:bug assignee:@me no:milestone"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Project management"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Label needed"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode is:open no:label"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Triage decision needed"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "org:fricas-vscode is:open milestone:\"Triage\""
+  }
+]

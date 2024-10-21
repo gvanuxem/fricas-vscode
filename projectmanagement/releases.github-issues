@@ -1,0 +1,87 @@
+[
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "# Release management\r\n\r\nThis notebook gives an overview of the status of the next releases."
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Showstopper\r\n\r\nDo we have any showstopper issues right ?"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode label:Showstopper"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Next Feature Release"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Review required"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Feature Release\" draft:false review:required"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Changes requested"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Feature Release\" -review:approved -review:required draft:false"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Ready to be merged"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Feature Release\" review:approved draft:false"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "## Next patch release"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Review required"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Bugfix Release\" review:required draft:false"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Changes requested"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Bugfix Release\" -review:approved -review:required draft:false"
+  },
+  {
+    "kind": 1,
+    "language": "markdown",
+    "value": "### Ready to be merged"
+  },
+  {
+    "kind": 2,
+    "language": "github-issues",
+    "value": "is:open org:fricas-vscode is:pr milestone:\"Next Bugfix Release\" review:approved draft:false"
+  }
+]

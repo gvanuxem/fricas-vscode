@@ -1,0 +1,1089 @@
+{
+    "name": "language-fricas",
+    "displayName": "FriCAS",
+    "description": "FriCAS Language Support",
+    "version": "0.0.1-alpha",
+    "preview": true,
+    "publisher": "gvanuxem",
+    "engines": {
+        "vscode": "^1.78.0"
+    },
+    "license": "The MIT License (see LICENSE)",
+    "bugs": {
+        "url": "https://github.com/gvanuxem/fricas-vscode/issues"
+    },
+    "homepage": "https://github.com/gvanuxem/fricas-vscode",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/gvanuxem/fricas-vscode/fricas-vscode.git"
+    },
+    "icon": "images/fricas-logo.png",
+    "categories": [
+        "Programming Languages",
+        "Snippets",
+        "Debuggers",
+        "Machine Learning",
+        "Notebooks",
+        "Data Science"
+    ],
+    "activationEvents": [
+        "onDebugInitialConfigurations",
+        "onDebugResolve:fricas",
+        "onCommand:language-fricas.executeFriCASBlockInREPL",
+        "onCommand:language-fricas.debug.getActiveFriCASEnvironment",
+        "onLanguage:fricasmarkdown",
+        "onNotebook:jupyter-notebook",
+        "onView:fricas-explorer.REPLVariables",
+        "onView:fricas-explorer.fricas-documentation",
+        "onView:fricas-explorer.fricas-plot-navigator",
+        "workspaceContains:Project.toml"
+    ],
+    "main": "./dist/extension",
+    "contributes": {
+        "languages": [
+            {
+                "id": "fricas",
+                "configuration": "./language-configuration.json",
+                "extensions": [
+                    ".spad",
+                    ".input"
+                ]
+            }
+        ],
+        "grammars": [
+            {
+                "language": "fricas",
+                "scopeName": "source.fricas",
+                "path": "./syntaxes/fricas.vscode.json"
+            }
+         ],
+        "commands": [
+            {
+                "command": "language-fricas.newFriCASFile",
+                "title": "FriCAS: New FriCAS File",
+                "shortTitle": "FriCAS File"
+            },
+            {
+                "command": "language-fricas.restartLanguageServer",
+                "title": "FriCAS: Restart Language Server"
+            },
+            {
+                "command": "language-fricas.openPackageDirectory",
+                "title": "FriCAS: Open Package Directory in New Window"
+            },
+            {
+                "command": "language-fricas.tagNewPackageVersion",
+                "title": "FriCAS: Tag new package version (experimental)"
+            },
+            {
+                "command": "language-fricas.changeCurrentEnvironment",
+                "title": "FriCAS: Change Current Environment"
+            },
+            {
+                "command": "language-fricas.startREPL",
+                "title": "FriCAS: Start REPL"
+            },
+            {
+                "command": "language-fricas.connectREPL",
+                "title": "FriCAS: Connect external REPL"
+            },
+            {
+                "command": "language-fricas.stopREPL",
+                "title": "FriCAS: Stop REPL",
+                "icon": "$(debug-stop)"
+            },
+            {
+                "command": "language-fricas.restartREPL",
+                "title": "FriCAS: Restart REPL",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "language-fricas.stopTestProcess",
+                "title": "FriCAS: Stop Test Process",
+                "icon": "$(debug-stop)"
+            },
+            {
+                "command": "language-fricas.disconnectREPL",
+                "title": "FriCAS: Disconnect external REPL"
+            },
+            {
+                "command": "language-fricas.executeCodeBlockOrSelection",
+                "title": "FriCAS: Execute Code in REPL"
+            },
+            {
+                "command": "language-fricas.executeFriCASCodeInREPL",
+                "title": "FriCAS: Send Current Line or Selection to REPL"
+            },
+            {
+                "command": "language-fricas.executeCodeBlockOrSelectionAndMove",
+                "title": "FriCAS: Execute Code in REPL and Move"
+            },
+            {
+                "command": "language-fricas.executeFile",
+                "title": "FriCAS: Execute File in REPL",
+                "icon": "$(play)"
+            },
+            {
+                "command": "language-fricas.executeActiveFile",
+                "title": "FriCAS: Execute active File in REPL",
+                "icon": "$(play)"
+            },
+            {
+                "command": "language-fricas.interrupt",
+                "title": "FriCAS: Interrupt Execution",
+                "icon": "$(debug-pause)",
+                "enablement": "fricas.isEvaluating"
+            },
+            {
+                "command": "language-fricas.show-documentation",
+                "title": "FriCAS: Show Documentation"
+            },
+            {
+                "command": "language-fricas.show-documentation-pane",
+                "title": "FriCAS: Show Documentation Pane"
+            },
+            {
+                "command": "language-fricas.previousProfile",
+                "title": "FriCAS: Previous Profile",
+                "icon": "$(arrow-left)"
+            },
+            {
+                "command": "language-fricas.deleteProfile",
+                "title": "FriCAS: Delete Profile",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "language-fricas.deleteAllProfiles",
+                "title": "FriCAS: Delete All Profiles"
+            },
+            {
+                "command": "language-fricas.saveProfileToFile",
+                "title": "FriCAS: Save Profile",
+                "icon": "$(save)"
+            },
+            {
+                "command": "language-fricas.show-plot-navigator",
+                "title": "FriCAS: Show Plot Navigator"
+            },
+            {
+                "command": "language-fricas.browse-back-documentation",
+                "title": "FriCAS: Browse Back Documentation",
+                "icon": "$(arrow-left)"
+            },
+            {
+                "command": "language-fricas.browse-forward-documentation",
+                "title": "FriCAS: Browse Forward Documentation",
+                "icon": "$(arrow-right)"
+            },
+            {
+                "command": "language-fricas.show-plotpane",
+                "title": "FriCAS: Show Plot"
+            },
+            {
+                "command": "language-fricas.plotpane-next",
+                "title": "FriCAS: Show Next Plot",
+                "icon": "$(arrow-right)"
+            },
+            {
+                "command": "language-fricas.plotpane-previous",
+                "title": "FriCAS: Show Previous Plot",
+                "icon": "$(arrow-left)"
+            },
+            {
+                "command": "language-fricas.plotpane-first",
+                "title": "FriCAS: Show First Plot"
+            },
+            {
+                "command": "language-fricas.plotpane-enable",
+                "title": "FriCAS: Enable Plot Pane",
+                "icon": "$(circle-large-outline)"
+            },
+            {
+                "command": "language-fricas.plotpane-disable",
+                "title": "FriCAS: Disable Plot Pane",
+                "icon": "$(pass-filled)"
+            },
+            {
+                "command": "language-fricas.plotpane-last",
+                "title": "FriCAS: Show Last Plot"
+            },
+            {
+                "command": "language-fricas.plotpane-delete",
+                "title": "FriCAS: Delete plot",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "language-fricas.copy-plot",
+                "title": "FriCAS: Copy Plot",
+                "icon": "$(explorer-view-icon)"
+            },
+            {
+                "command": "language-fricas.save-plot",
+                "title": "FriCAS: Save Plot",
+                "icon": "$(save)"
+            },
+            {
+                "command": "language-fricas.plotpane-delete-all",
+                "title": "FriCAS: Delete All Plots"
+            },
+            {
+                "command": "language-fricas.executeCell",
+                "title": "FriCAS: Execute Code Cell in REPL"
+            },
+            {
+                "command": "language-fricas.executeCellAndMove",
+                "title": "FriCAS: Execute Code Cell in REPL and Move"
+            },
+            {
+                "command": "language-fricas.moveCellUp",
+                "title": "FriCAS: Move to Previous Cell"
+            },
+            {
+                "command": "language-fricas.moveCellDown",
+                "title": "FriCAS: Move to Next Cell"
+            },
+            {
+                "command": "language-fricas.selectBlock",
+                "title": "FriCAS: Select Code Block"
+            },
+            {
+                "command": "language-fricas.showInVSCode",
+                "title": "Open in VS Code",
+                "icon": "$(preview)"
+            },
+            {
+                "command": "language-fricas.workspaceGoToFile",
+                "title": "Go to definition",
+                "icon": "$(go-to-file)"
+            },
+            {
+                "command": "language-fricas.clearAllInlineResults",
+                "title": "FriCAS: Clear All Inline Results"
+            },
+            {
+                "command": "language-fricas.clearAllInlineResultsInEditor",
+                "title": "FriCAS: Clear Inline Results In Editor"
+            },
+            {
+                "command": "language-fricas.clearCurrentInlineResult",
+                "title": "FriCAS: Clear Current Inline Result"
+            },
+            {
+                "command": "language-fricas.runEditorContents",
+                "title": "FriCAS: Run File in New Process",
+                "icon": "$(play)"
+            },
+            {
+                "command": "language-fricas.debugEditorContents",
+                "title": "FriCAS: Debug File in New Process",
+                "icon": "$(debug-alt)"
+            },
+            {
+                "command": "language-fricas.cdHere",
+                "title": "FriCAS: Change to This Directory"
+            },
+            {
+                "command": "language-fricas.activateHere",
+                "title": "FriCAS: Activate This Environment"
+            },
+            {
+                "command": "language-fricas.activateFromDir",
+                "title": "FriCAS: Activate Parent Environment"
+            },
+            {
+                "command": "language-fricas.restartKernel",
+                "title": "Restart",
+                "icon": "$(debug-restart)"
+            },
+            {
+                "command": "language-fricas.stopKernel",
+                "title": "Stop",
+                "icon": "$(debug-stop)"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "language-fricas.newFriCASFile",
+                    "group": "fricas",
+                    "when": "fricas.isActive"
+                },
+                {
+                    "command": "language-fricas.executeFile",
+                    "group": "fricas",
+                    "when": "resourceLangId in fricas.supportedLanguageIds"
+                },
+                {
+                    "command": "language-fricas.cdHere",
+                    "group": "fricas",
+                    "when": "fricas.hasREPL"
+                },
+                {
+                    "command": "language-fricas.activateHere",
+                    "group": "fricas",
+                    "when": "fricas.hasREPL"
+                },
+                {
+                    "command": "language-fricas.activateFromDir",
+                    "group": "fricas",
+                    "when": "fricas.hasREPL"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "language-fricas.browse-back-documentation",
+                    "when": "fricasDocumentationPaneActive",
+                    "group": "navigation@-2"
+                },
+                {
+                    "command": "language-fricas.browse-forward-documentation",
+                    "when": "fricasDocumentationPaneActive",
+                    "group": "navigation@-1"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.plotpane-delete",
+                    "group": "navigation@0"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.save-plot",
+                    "group": "navigation@-1"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.plotpane-next",
+                    "group": "navigation@-2"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.plotpane-previous",
+                    "group": "navigation@-3"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.copy-plot",
+                    "group": "1-fricas@0"
+                },
+                {
+                    "when": "fricas.plotpaneFocus && config.fricas.usePlotPane",
+                    "command": "language-fricas.plotpane-disable",
+                    "group": "1-fricas@1"
+                },
+                {
+                    "when": "fricas.plotpaneFocus && !config.fricas.usePlotPane",
+                    "command": "language-fricas.plotpane-enable",
+                    "group": "1-fricas@1"
+                },
+                {
+                    "when": "fricas.plotpaneFocus",
+                    "command": "language-fricas.plotpane-delete-all",
+                    "group": "1-fricas@2"
+                },
+                {
+                    "command": "language-fricas.clearAllInlineResultsInEditor",
+                    "when": "editorLangId in fricas.supportedLanguageIds"
+                },
+                {
+                    "command": "language-fricas.cdHere",
+                    "group": "fricas",
+                    "when": "editorLangId in fricas.supportedLanguageIds"
+                },
+                {
+                    "command": "language-fricas.activateHere",
+                    "group": "fricas",
+                    "when": "editorLangId in fricas.supportedLanguageIds"
+                },
+                {
+                    "command": "language-fricas.activateFromDir",
+                    "group": "fricas",
+                    "when": "editorLangId in fricas.supportedLanguageIds"
+                }
+            ],
+            "editor/title/run": [
+                {
+                    "command": "language-fricas.executeActiveFile",
+                    "when": "resourceLangId in fricas.supportedLanguageIds",
+                    "group": "FriCAS@10"
+                },
+                {
+                    "command": "language-fricas.runEditorContents",
+                    "when": "resourceLangId == fricas",
+                    "group": "FriCAS@20"
+                },
+                {
+                    "command": "language-fricas.debugEditorContents",
+                    "when": "resourceLangId == fricas",
+                    "group": "FriCAS@30"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "language-fricas.showInVSCode",
+                    "when": "view == REPLVariables && viewItem =~ /globalvariable/",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.workspaceGoToFile",
+                    "when": "view == REPLVariables && viewItem =~ /haslocation/",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.stopKernel",
+                    "when": "view == REPLVariables && viewItem == fricaskernel",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.restartKernel",
+                    "when": "view == REPLVariables && viewItem == fricaskernel",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.stopREPL",
+                    "when": "view == REPLVariables && viewItem == fricasrepl",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.restartREPL",
+                    "when": "view == REPLVariables && viewItem == fricasrepl",
+                    "group": "inline"
+                },
+                {
+                    "command": "language-fricas.stopTestProcess",
+                    "when": "view == REPLVariables && viewItem == fricastestprocess",
+                    "group": "inline"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "language-fricas.browse-back-documentation",
+                    "when": "view == fricas-documentation",
+                    "group": "navigation"
+                },
+                {
+                    "command": "language-fricas.browse-forward-documentation",
+                    "when": "view == fricas-documentation",
+                    "group": "navigation"
+                }
+            ],
+            "editor/context": [
+                {
+                    "command": "language-fricas.executeCodeBlockOrSelection",
+                    "when": "activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds",
+                    "group": "z_commands"
+                },
+                {
+                    "command": "language-fricas.show-documentation",
+                    "when": "editorLangId in fricas.supportedLanguageIds",
+                    "group": "z_commands"
+                }
+            ],
+            "notebook/toolbar": [
+                {
+                    "command": "language-fricas.restartKernel",
+                    "group": "navigation/execute@1",
+                    "when": "notebookType == 'jupyter-notebook' && isWorkspaceTrusted && notebookKernel =~ /fricaslang/"
+                },
+                {
+                    "command": "language-fricas.stopKernel",
+                    "group": "navigation/execute@2",
+                    "when": "notebookType == 'jupyter-notebook' && isWorkspaceTrusted && notebookKernel =~ /fricaslang/"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "language-fricas.restartKernel",
+                    "when": "false"
+                },
+                {
+                    "command": "language-fricas.stopKernel",
+                    "when": "false"
+                }
+            ],
+            "file/newFile": [
+                {
+                    "command": "language-fricas.newFriCASFile",
+                    "group": "file"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "language-fricas.executeCodeBlockOrSelectionAndMove",
+                "key": "Shift+Enter",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.executeCodeBlockOrSelection",
+                "key": "Ctrl+Enter",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.executeCell",
+                "key": "Alt+Enter",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.executeCellAndMove",
+                "key": "Alt+Shift+Enter",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.interrupt",
+                "key": "Ctrl+C",
+                "when": "terminalFocus && fricas.isActiveREPL && fricas.isEvaluating"
+            },
+            {
+                "command": "language-fricas.clearCurrentInlineResult",
+                "key": "Escape",
+                "when": "editorTextFocus && !editorHasSelection && !findWidgetVisible && !markerNavigationVisible && !parameterHintsVisible && !inSnippetMode && !isInEmbeddedEditor && !suggestWidgetVisible && !onTypeRenameInputVisible && !renameInputVisible && fricas.hasInlineResult && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.clearAllInlineResultsInEditor",
+                "key": "Ctrl+I Ctrl+C",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.newFriCASFile",
+                "key": "Alt+J Alt+N"
+            },
+            {
+                "command": "language-fricas.startREPL",
+                "key": "Alt+J Alt+O"
+            },
+            {
+                "command": "language-fricas.stopREPL",
+                "key": "Alt+J Alt+K"
+            },
+            {
+                "command": "language-fricas.restartREPL",
+                "key": "Alt+J Alt+R"
+            },
+            {
+                "command": "language-fricas.changeCurrentEnvironment",
+                "key": "Alt+J Alt+E",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "command": "language-fricas.show-documentation",
+                "key": "Alt+J Alt+D",
+                "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
+            },
+            {
+                "key": "Alt+J Alt+P",
+                "command": "language-fricas.show-plotpane"
+            },
+            {
+                "key": "Alt+J Alt+W",
+                "command": "REPLVariables.focus"
+            },
+            {
+                "key": "Ctrl+Shift+C",
+                "command": "language-fricas.interrupt",
+                "when": "fricas.isEvaluating"
+            },
+            {
+                "command": "language-fricas.browse-back-documentation",
+                "key": "left",
+                "when": "fricasDocumentationPaneActive"
+            },
+            {
+                "command": "language-fricas.browse-forward-documentation",
+                "key": "right",
+                "when": "fricasDocumentationPaneActive"
+            },
+            {
+                "command": "language-fricas.plotpane-previous",
+                "key": "left",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.plotpane-next",
+                "key": "right",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.plotpane-first",
+                "key": "home",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.plotpane-last",
+                "key": "end",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.plotpane-delete",
+                "key": "delete",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.copy-plot",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.save-plot",
+                "when": "fricas.plotpaneFocus"
+            },
+            {
+                "command": "language-fricas.plotpane-delete-all",
+                "key": "shift+delete",
+                "when": "fricas.plotpaneFocus"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "FriCAS",
+            "properties": {
+                "fricas.executablePath": {
+                    "type": "string",
+                    "default": "fricas",
+                    "description": "Points to the fricas executable.",
+                    "scope": "machine-overridable"
+                },
+                "fricas.trace.server": {
+                    "type": "string",
+                    "default": "verbose",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "description": "Traces the communication between VS Code and the language server.",
+                    "scope": "window"
+                },
+                "fricas.usePlotPane": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Display plots within VS Code. Might require a restart of the FriCAS process."
+                },
+                "fricas.showRuntimeDiagnostics": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Enable display of runtime diagnostics. These diagnostics are provided by packages that overload a `show` method for the `application/vnd.fricas-vscode.diagnostics` MIME type."
+                },
+                "fricas.focusPlotNavigator": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether to automatically show the plot navigator when plotting."
+                },
+                "fricas.useProgressFrontend": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Display [progress bars](https://github.com/JunoLab/ProgressLogging.jl) within VS Code."
+                },
+                "fricas.additionalArgs": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Additional FriCAS arguments."
+                },
+                "fricas.environmentPath": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null,
+                    "description": "Path to a fricas environment. VS Code needs to be reloaded for changes to take effect.",
+                    "scope": "window"
+                },
+                "fricas.numTestProcesses": {
+                    "type": "integer",
+                    "default": 1,
+                    "scope": "machine-overridable",
+                    "markdownDescription": "Number of processes to use for testing."
+                },
+                "fricas.editor": {
+                    "type": "string",
+                    "default": "code",
+                    "markdownDescription": "Command to open files from the REPL (via setting the `FRICASEDITOR` environment variable)."
+                },
+                "fricas.completionmode": {
+                    "type": "string",
+                    "default": "qualify",
+                    "description": "Sets the mode for completions.",
+                    "enum": [
+                        "exportedonly",
+                        "import",
+                        "qualify"
+                    ],
+                    "enumDescriptions": [
+                        "Show completions for the current namespace.",
+                        "Show completions for the current namespace and unexported variables of `import`ed packages. Selection of an unexported variable will result in the automatic insertion of an explicit `import` statement.",
+                        "Show completions for the current namespace and unexported variables of `import`ed packages. Selection of an unexported variable will complete to a qualified variable name."
+                    ],
+                    "scope": "window"
+                },
+                "fricas.cellDelimiters": {
+                    "type": "array",
+                    "default": [
+                        "^##(?!#)",
+                        "^#(\\s?)%%",
+                        "^#-"
+                    ],
+                    "description": "Cell delimiter regular expressions for FriCAS files."
+                },
+                "fricas.execution.resultType": {
+                    "type": "string",
+                    "default": "both",
+                    "description": "Specifies how to show inline execution results",
+                    "enum": [
+                        "REPL",
+                        "inline",
+                        "inline, errors in REPL",
+                        "both"
+                    ],
+                    "enumDescriptions": [
+                        "Shows inline execution results in REPL",
+                        "Shows inline execution results as inline bubbles",
+                        "Shows inline execution results in REPL and inline bubbles"
+                    ]
+                },
+                "fricas.execution.codeInREPL": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Print executed code in REPL and append it to the REPL history.",
+                    "scope": "window"
+                },
+                "fricas.execution.saveOnEval": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "window",
+                    "markdownDescription": "Save file before execution"
+                },
+                "fricas.execution.inlineResultsForCellEvaluation": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "window",
+                    "markdownDescription": "Show separate inline results for all code blocks in a cell"
+                },
+                "fricas.liveTestFile": {
+                    "type": "string",
+                    "default": "test/runtests.input",
+                    "description": "A workspace relative path to a FriCAS file that contains the tests that should be run for live testing.",
+                    "scope": "window"
+                },
+                "fricas.persistentSession.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "machine-overridable",
+                    "markdownDescription": "Experimental: Starts the interactive FriCAS session in a persistent `tmux` session. Note that `tmux` must be available in the shell defined below. If present the string `$[workspace]` will be replaced with the current file's workspace when the REPL is first opened."
+                },
+                "fricas.persistentSession.shell": {
+                    "type": "string",
+                    "default": "/bin/sh",
+                    "scope": "machine",
+                    "description": "Shell used to start the persistent session."
+                },
+                "fricas.persistentSession.shellExecutionArgument": {
+                    "type": "string",
+                    "default": "-c",
+                    "scope": "machine",
+                    "markdownDescription": "Argument to execute code in the configured shell, e.g. `-c` for sh-likes or `/c` for `cmd`."
+                },
+                "fricas.persistentSession.tmuxSessionName": {
+                    "type": "string",
+                    "default": "fricas_vscode",
+                    "scope": "machine-overridable",
+                    "markdownDescription": "Name of the `tmux` session."
+                },
+                "fricas.persistentSession.warnOnKill": {
+                    "type": "boolean",
+                    "default": true,
+                    "scope": "application",
+                    "description": "Warn when stopping a persistent session."
+                },
+                "fricas.persistentSession.alwaysCopy": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "application",
+                    "description": "Always copy the command for connecting to an external REPL to the clipboard."
+                },
+                "fricas.runtimeCompletions": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Request runtime completions from the integrated REPL.",
+                    "scope": "application"
+                },
+                "fricas.plots.path": {
+                    "type": "string",
+                    "description": "Default directory for saving plots. Can either be relative to the current workspace or absolute.",
+                    "scope": "window"
+                }
+            }
+        },
+        "configurationDefaults": {
+            "[fricas]": {
+                "editor.wordSeparators": "`~#$%^&*()-=+[{]}\\|;:'\",.<>/?"
+            }
+        },
+        "taskDefinitions": [
+            {
+                "type": "fricas",
+                "required": [
+                    "command"
+                ],
+                "properties": {
+                    "command": {
+                        "type": "string"
+                    }
+                }
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "fricas-explorer",
+                    "title": "FriCAS",
+                    "icon": "images/fricas-dots-outline.svg",
+                    "when": "fricas.isActive"
+                }
+            ]
+        },
+        "views": {
+            "fricas-explorer": [
+                {
+                    "type": "tree",
+                    "id": "REPLVariables",
+                    "name": "Workspace",
+                    "when": "fricas.isActive"
+                },
+                {
+                    "type": "webview",
+                    "id": "fricas-documentation",
+                    "name": "Documentation",
+                    "when": "fricas.isActive"
+                },
+                {
+                    "type": "webview",
+                    "id": "fricas-plot-navigator",
+                    "name": "Plot Navigator",
+                    "when": "fricas.isActive"
+                }
+            ],
+            "debug": [
+                {
+                    "type": "tree",
+                    "id": "debugger-compiled",
+                    "name": "FriCAS: Compiled Code",
+                    "when": "fricas.isActive"
+                }
+            ]
+        },
+        "breakpoints": [
+            {
+                "language": "fricas"
+            }
+        ],
+        "debuggers": [
+            {
+                "type": "fricas",
+                "label": "FriCAS",
+                "languages": [
+                    "fricas"
+                ],
+                "configurationAttributes": {
+                    "launch": {
+                        "required": [
+                            "program"
+                        ],
+                        "properties": {
+                            "program": {
+                                "type": "string",
+                                "description": "Absolute path to a FriCAS script.",
+                                "default": "${file}"
+                            },
+                            "stopOnEntry": {
+                                "type": "boolean",
+                                "description": "Automatically stop after launch.",
+                                "default": false
+                            },
+                            "cwd": {
+                                "type": "string",
+                                "description": "Absolute path to the working directory of the program being debugged. Default is the root directory of the file (leave empty).",
+                                "default": "${workspaceFolder}"
+                            },
+                            "args": {
+                                "type": "array",
+                                "description": "Command line arguments passed to the program",
+                                "default": [],
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "fricasEnv": {
+                                "type": "string",
+                                "description": "Absolute path to the FriCAS environment.",
+                                "default": "${command:activeFriCASEnvironment}"
+                            }
+                        }
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "type": "fricas",
+                        "request": "launch",
+                        "name": "Run active FriCAS file",
+                        "program": "${file}",
+                        "stopOnEntry": false,
+                        "cwd": "${workspaceFolder}",
+                        "fricasEnv": "${command:activeFriCASEnvironment}"
+                    }
+                ],
+                "configurationSnippets": [
+                    {
+                        "label": "FriCAS Debug: Launch",
+                        "description": "A new configuration for launch a FriCAS debug program",
+                        "body": {
+                            "type": "fricas",
+                            "request": "launch",
+                            "name": "${2:Launch Program}",
+                            "program": "^\"\\${workspaceFolder}/${1:Program}\"",
+                            "stopOnEntry": false
+                        }
+                    },
+                    {
+                        "label": "FriCAS Debug: Launch tests",
+                        "description": "A new configuration for launch FriCAS tests",
+                        "body": {
+                            "type": "fricas",
+                            "request": "launch",
+                            "name": "Launch FriCAS tests",
+                            "program": "^\"\\${workspaceFolder}/test/runtests.input\"",
+                            "stopOnEntry": true
+                        }
+                    }
+                ],
+                "variables": {
+                    "activeFriCASEnvironment": "language-fricas.debug.getActiveFriCASEnvironment"
+                }
+            }
+        ],
+        "colors": [
+            {
+                "id": "fricas.result.foreground",
+                "description": "Result text color.",
+                "defaults": {
+                    "dark": "editor.foreground",
+                    "light": "editor.foreground",
+                    "highContrast": "editor.foreground",
+                    "highContrastLight": "editor.foreground"
+                }
+            },
+            {
+                "id": "fricas.result.background",
+                "description": "Result background color.",
+                "defaults": {
+                    "dark": "#ffffff22",
+                    "light": "#00000011",
+                    "highContrast": "#ffffff22",
+                    "highContrastLight": "#00000011"
+                }
+            },
+            {
+                "id": "fricas.result.success",
+                "description": "Accent color for non-error results.",
+                "defaults": {
+                    "dark": "#159eed",
+                    "light": "#159eed",
+                    "highContrast": "#159eed",
+                    "highContrastLight": "#159eed"
+                }
+            },
+            {
+                "id": "fricas.result.error",
+                "description": "Accent color for error results.",
+                "defaults": {
+                    "dark": "#d11111",
+                    "light": "#d11111",
+                    "highContrast": "#d11111",
+                    "highContrastLight": "#d11111"
+                }
+            },
+            {
+                "id": "fricas.profiler.dispatch",
+                "description": "Inline profiler color for traces with dynamic dispatch.",
+                "defaults": {
+                    "dark": "#cc676732",
+                    "light": "#cc676732",
+                    "highContrast": "#cc676732",
+                    "highContrastLight": "#cc676732"
+                }
+            },
+            {
+                "id": "fricas.profiler.gc",
+                "description": "Inline profiler color for traces with GC events/allocations.",
+                "defaults": {
+                    "dark": "#cc994432",
+                    "light": "#cc994432",
+                    "highContrast": "#cc994432",
+                    "highContrastLight": "#cc994432"
+                }
+            },
+            {
+                "id": "fricas.profiler.default",
+                "description": "Default inline profiler color.",
+                "defaults": {
+                    "dark": "#4063dd32",
+                    "light": "#4063dd32",
+                    "highContrast": "#4063dd32",
+                    "highContrastLight": "#4063dd32"
+                }
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "webpack --mode production",
+        "webpack": "webpack --mode development",
+        "webpack-dev": "webpack --mode development --watch",
+        "eslint": "eslint --ext .ts --fix .",
+        "eslint-dry-run": "eslint --ext .ts --fix-dry-run .",
+        "compile": "tsc -p ./",
+        "compile-dry-run": "tsc -p ./ --noEmit --pretty",
+        "watch": "tsc -watch -p ./",
+        "test": "node ./out/test/runTest.js",
+        "initialsetup": "npm i && git submodule init && git submodule update",
+        "update2latest": "git pull && git submodule init && git submodule update && npm install --no-save && npm run compile && npm run webpack",
+        "package": "vsce package",
+        "updatedeps": "npm run compile && node ./out/scripts/updateDeps.js",
+        "tagminor": "npm version minor && git push --tags && git push",
+        "tagmajor": "npm version major && git push --tags && git push"
+    },
+    "dependencies": {
+        "@traptitech/markdown-it-katex": "^3.5.0",
+        "@vscode/debugadapter": "^1.55.1",
+        "@vscode/debugprotocol": "^1.55.1",
+        "@vscode/test-electron": "^2.2.0",
+        "applicationinsights": "^2",
+        "async-file": "^v2.0.2",
+        "await-notify": "^1.0.1",
+        "markdown-it": "^12.3.2",
+        "markdown-it-footnote": "^3.0.3",
+        "promised-temp": "^v0.1.0",
+        "promisify-child-process": "^4.1.1",
+        "semver": "^7.3.5",
+        "source-map-support": "^0.5.21",
+        "string-argv": "^0.3.1",
+        "uuid": "^8.0.1",
+        "vscode-jsonrpc": "^8.0.0",
+        "vscode-languageclient": "^8.0.0",
+        "which": "^2.0.2"
+    },
+    "devDependencies": {
+        "@types/download": "^8.0.1",
+        "@types/markdown-it": "^12.2.3",
+        "@types/mocha": "^9.1.0",
+        "@types/node": "^16",
+        "@types/semver": "^7.3.9",
+        "@types/source-map-support": "^0.5.4",
+        "@types/vscode": "1.78.0",
+        "@typescript-eslint/parser": "^5.14.0",
+        "download": "^3.3.0",
+        "eslint": "^8.11.0",
+        "mocha": "^9.2.2",
+        "ts-loader": "^9.2.8",
+        "typescript": "^5",
+        "@vscode/vsce": "^2.15.1",
+        "webpack": "^5.70.0",
+        "webpack-cli": "^5"
+    }
+}

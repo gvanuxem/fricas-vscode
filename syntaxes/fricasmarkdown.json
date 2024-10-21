@@ -1,0 +1,15 @@
+{
+    "name": "fricas Markdown",
+    "scopeName": "text.html.markdown.fricas",
+    "fileTypes": [
+        "jmd"
+    ],
+    "patterns": [
+        {
+            "include": "markdown.fricas.codeblock"
+        },
+        {
+            "include": "text.html.markdown"
+        }
+    ]
+}

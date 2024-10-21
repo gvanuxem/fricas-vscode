@@ -1,0 +1,16 @@
+.github/**
+.vscode/**
+.vscode-test/**
+out/**
+src/**
+node_modules/**
+.gitignore
+.gitmodules
+tsconfig.json
+webpack.config.js
+scripts/languageserver/fricas_pkgdir/**
+scripts/testenvironments
+CONTRIBUTING.md
+*.vsix
+azure-pipelines.yml
+projectmanagement
