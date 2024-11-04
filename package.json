@@ -46,7 +46,8 @@
                 "configuration": "./language-configuration.json",
                 "extensions": [
                     ".spad",
-                    ".input"
+                    ".input",
+                    ".as"
                 ]
             }
         ],
@@ -666,11 +667,6 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Whether to automatically show the plot navigator when plotting."
-                },
-                "fricas.useProgressFrontend": {
-                    "type": "boolean",
-                    "default": false,
-                    "markdownDescription": "Display [progress bars](https://github.com/JunoLab/ProgressLogging.jl) within VS Code."
                 },
                 "fricas.additionalArgs": {
                     "type": "array",

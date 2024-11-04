@@ -153,7 +153,7 @@ export class TestProcess {
             [
                 ...fricasExecutable.args,
                 ...jlArgs,
-                join(context.extensionPath, 'scripts', 'testserver', 'testserver_main.jl'),
+                join(context.extensionPath, 'scripts', 'testserver', 'testserver_main.input'),
                 pipename,
                 `v:${projectPath}`,
                 `v:${packagePath}`,

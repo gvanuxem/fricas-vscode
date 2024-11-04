@@ -233,7 +233,7 @@ export class FriCASDebugSession extends LoggingDebugSession {
                 this.context.extensionPath,
                 'scripts',
                 'debugger',
-                'run_debugger.jl'
+                'run_debugger.input'
             ),
             pn,
             getCrashReportingPipename(),

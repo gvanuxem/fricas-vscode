@@ -157,7 +157,7 @@ class FriCASTaskProvider {
                 result.push(buildFriCASSysimage)
             }*/
 
-            if (await fs.exists(path.join(rootPath, 'deps', 'build.jl'))) {
+            if (await fs.exists(path.join(rootPath, 'deps', 'build.input'))) {
                 const buildTask = new vscode.Task(
                     {
                         type: 'fricas',
@@ -183,7 +183,7 @@ class FriCASTaskProvider {
                 result.push(buildTask)
             }
 
-            if (await fs.exists(path.join(rootPath, 'benchmark', 'benchmarks.jl'))) {
+            if (await fs.exists(path.join(rootPath, 'benchmark', 'benchmarks.input'))) {
                 const benchmarkTask = new vscode.Task(
                     {
                         type: 'fricas',
@@ -209,7 +209,7 @@ class FriCASTaskProvider {
                 result.push(benchmarkTask)
             }
 
-            if (await fs.exists(path.join(rootPath, 'docs', 'make.jl'))) {
+            if (await fs.exists(path.join(rootPath, 'docs', 'make.input'))) {
                 const buildTask = new vscode.Task(
                     {
                         type: 'fricas',
@@ -224,8 +224,8 @@ class FriCASTaskProvider {
                             ...fricasExecutable.args,
                             `--project=${pkgenvpath}`,
                             '--color=yes',
-                            path.join(this.context.extensionPath, 'scripts', 'tasks', 'task_docbuild.jl'),
-                            path.join(rootPath, 'docs', 'make.jl'),
+                            path.join(this.context.extensionPath, 'scripts', 'tasks', 'task_docbuild.input'),
+                            path.join(rootPath, 'docs', 'make.input'),
                             path.join(rootPath, 'docs', 'build', 'index.html')
                         ],
                         { cwd: rootPath }

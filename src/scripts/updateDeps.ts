@@ -107,29 +107,29 @@ async function main() {
 
         const env_path_ls = path.join(process.cwd(), 'scripts/environments/languageserver', `v${v}`)
         await fs.mkdir(env_path_ls, { recursive: true })
-        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_ls_project.jl')}`, { cwd: env_path_ls })
+        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_ls_project.input')}`, { cwd: env_path_ls })
 
         if(new semver.SemVer(`${v}.0`)>=new semver.SemVer('1.6.0')) {
             const env_path_pkgdev = path.join(process.cwd(), 'scripts/environments/pkgdev', `v${v}`)
             await fs.mkdir(env_path_pkgdev, { recursive: true })
-            await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_pkgdev_project.jl')}`, { cwd: env_path_pkgdev })
+            await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_pkgdev_project.input')}`, { cwd: env_path_pkgdev })
         }
 
         const env_path_sysimagecompile = path.join(process.cwd(), 'scripts/environments/sysimagecompile', `v${v}`)
         await fs.mkdir(env_path_sysimagecompile, { recursive: true })
-        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_sysimagecompile_project.jl')}`, { cwd: env_path_sysimagecompile })
+        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_sysimagecompile_project.input')}`, { cwd: env_path_sysimagecompile })
 
         const env_path_test_debugadapter = path.join(process.cwd(), 'scripts/testenvironments/debugadapter', `v${v}`)
         await fs.mkdir(env_path_test_debugadapter, { recursive: true })
-        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_debugadapter_project.jl')}`, { cwd: env_path_test_debugadapter })
+        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_debugadapter_project.input')}`, { cwd: env_path_test_debugadapter })
 
         const env_path_test_vscodedebugger = path.join(process.cwd(), 'scripts/testenvironments/vscodedebugger', `v${v}`)
         await fs.mkdir(env_path_test_vscodedebugger, { recursive: true })
-        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_vscodedebugger_project.jl')}`, { cwd: env_path_test_vscodedebugger })
+        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_vscodedebugger_project.input')}`, { cwd: env_path_test_vscodedebugger })
 
         const env_path_test_vscodeserver = path.join(process.cwd(), 'scripts/testenvironments/vscodeserver', `v${v}`)
         await fs.mkdir(env_path_test_vscodeserver, { recursive: true })
-        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_vscodeserver_project.jl')}`, { cwd: env_path_test_vscodeserver })
+        await cp.exec(`fricas "+${v}" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_test_vscodeserver_project.input')}`, { cwd: env_path_test_vscodeserver })
 
     }
 
@@ -150,9 +150,9 @@ async function main() {
     await fs.mkdir(path.join(process.cwd(), 'scripts/environments/languageserver/fallback'), { recursive: true })
     await fs.mkdir(path.join(process.cwd(), 'scripts/environments/pkgdev/fallback'), { recursive: true })
     await fs.mkdir(path.join(process.cwd(), 'scripts/environments/sysimagecompile/fallback'), { recursive: true })
-    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_ls_project.jl')}`, { cwd: path.join(process.cwd(), 'scripts/environments/languageserver/fallback') })
-    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_pkgdev_project.jl')}`, { cwd: path.join(process.cwd(), 'scripts/environments/pkgdev/fallback') })
-    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_sysimagecompile_project.jl')}`, { cwd: path.join(process.cwd(), 'scripts/environments/sysimagecompile/fallback') })
+    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_ls_project.input')}`, { cwd: path.join(process.cwd(), 'scripts/environments/languageserver/fallback') })
+    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_pkgdev_project.input')}`, { cwd: path.join(process.cwd(), 'scripts/environments/pkgdev/fallback') })
+    await cp.exec(`fricas "+alpha" --project=. ${path.join(process.cwd(), 'src/scripts/fricasprojectcreatescripts/create_sysimagecompile_project.input')}`, { cwd: path.join(process.cwd(), 'scripts/environments/sysimagecompile/fallback') })
 
     // FriCAS 1.0 and 1.1 write backslash in relative paths in Manifest files, which we don't want
     await replace_backslash_in_manifest(path.join(process.cwd(), 'scripts/environments/languageserver/v1.0'))
