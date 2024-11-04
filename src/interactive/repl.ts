@@ -12,7 +12,6 @@ import * as vslc from 'vscode-languageclient/node'
 import { onSetLanguageClient } from '../extension'
 import { switchEnvToPath } from '../spadpkgenv'
 import { FriCASExecutablesFeature } from '../fricasexepath'
-import * as telemetry from '../telemetry'
 import { generatePipeName, getVersionedParamsAtPosition, registerCommand, setContext, wrapCrashReporting } from '../utils'
 import * as completions from './completions'
 import { VersionedTextDocumentPositionParams } from './misc'
@@ -21,7 +20,7 @@ import * as plots from './plots'
 import * as results from './results'
 import { Frame, openFile } from './results'
 
-let g_context: vscode.ExtensionContext = null
+//let g_context: vscode.ExtensionContext = null
 let g_languageClient: vslc.LanguageClient = null
 //let g_compiledProvider = null
 
@@ -32,8 +31,6 @@ export let g_connection: rpc.MessageConnection = undefined
 let g_fricasExecutablesFeature: FriCASExecutablesFeature
 
 function startREPLCommand() {
-    telemetry.traceEvent('command-startrepl')
-
     startREPL(false, true)
 }
 async function confirmKill() {
@@ -187,23 +184,23 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
 }
 
 function fricasConnector(pipename: string, start = false) {
-    const connect = `VSCodeServer.serve(raw"${pipename}"; is_dev = "DEBUG_MODE=true" in Base.ARGS, crashreporting_pipename = raw"${telemetry.getCrashReportingPipename()}");nothing # re-establishing connection with VSCode`
+    /*const connect = `VSCodeServer.serve(raw"${pipename}"; is_dev = "DEBUG_MODE=true" in Base.ARGS, crashreporting_pipename = raw"${telemetry.getCrashReportingPipename()}");nothing # re-establishing connection with VSCode`
     if (start) {
         return `pushfirst!(LOAD_PATH, raw"${path.join(g_context.extensionPath, 'scripts', 'packages')}");using VSCodeServer;popfirst!(LOAD_PATH);` + connect
     } else {
         return connect
-    }
+    }*/
 }
 
 async function connectREPL() {
     const pipename = generatePipeName(v4(), 'vsc-fricas-repl')
     const fricasIsConnectedPromise = startREPLMsgServer(pipename)
-    const connectFriCASCode = fricasConnector(pipename, true)
+    //const connectFriCASCode = fricasConnector(pipename, true)
 
     const config = vscode.workspace.getConfiguration('fricas')
 
     if (config.get<boolean>('persistentSession.alwaysCopy')) {
-        vscode.env.clipboard.writeText(connectFriCASCode)
+        //vscode.env.clipboard.writeText(connectFriCASCode)
         vscode.window.showInformationMessage('Start a FriCAS session and execute the code in your clipboard into it.')
         await _connectREPL(fricasIsConnectedPromise)
     } else {
@@ -217,7 +214,7 @@ async function connectREPL() {
             config.update('persistentSession.alwaysCopy', true)
         }
         if (click) {
-            vscode.env.clipboard.writeText(connectFriCASCode)
+            //vscode.env.clipboard.writeText(connectFriCASCode)
             await _connectREPL(fricasIsConnectedPromise)
         }
     }
@@ -552,8 +549,6 @@ function stripMarkdown(code: string) {
 }
 
 async function executeFile(uri?: vscode.Uri | string) {
-    telemetry.traceEvent('command-executeFile')
-
     const editor = vscode.window.activeTextEditor
 
     await startREPL(true, false)
@@ -624,7 +619,6 @@ async function getBlockRange(params: VersionedTextDocumentPositionParams): Promi
 }
 
 async function selectFriCASBlock() {
-    telemetry.traceEvent('command-selectCodeBlock')
 
     const editor = vscode.window.activeTextEditor
     const position = editor.document.validatePosition(editor.selection.start)
@@ -674,7 +668,6 @@ function validateMoveAndReveal(editor: vscode.TextEditor, startpos: vscode.Posit
 }
 
 async function moveCellDown() {
-    telemetry.traceEvent('command-moveCellDown')
     const ed = vscode.window.activeTextEditor
     if (ed === undefined) {
         return
@@ -686,7 +679,6 @@ async function moveCellDown() {
 }
 
 async function moveCellUp() {
-    telemetry.traceEvent('command-moveCellUp')
     const ed = vscode.window.activeTextEditor
     if (ed === undefined) {
         return
@@ -728,7 +720,6 @@ function currentCellRange(editor: vscode.TextEditor) {
 }
 
 async function executeCell(shouldMove: boolean = false) {
-    telemetry.traceEvent('command-executeCell')
 
     const ed = vscode.window.activeTextEditor
     if (ed === undefined) {
@@ -783,8 +774,6 @@ async function executeCell(shouldMove: boolean = false) {
 }
 
 async function evaluateBlockOrSelection(shouldMove: boolean = false) {
-    telemetry.traceEvent('command-executeCodeBlockOrSelection')
-
 
     const editor = vscode.window.activeTextEditor
     if (editor === undefined) {
@@ -843,7 +832,6 @@ async function evaluateBlockOrSelection(shouldMove: boolean = false) {
 
 // Returns false if the connection wasn't available
 async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: string, module: string) {
-    telemetry.traceEvent('command-evaluate')
 
     const section = vscode.workspace.getConfiguration('fricas')
     const resultType: string = section.get('execution.resultType')
@@ -911,7 +899,6 @@ async function executeCodeCopyPaste(text: string, individualLine: boolean) {
 }
 
 function executeSelectionCopyPaste() {
-    telemetry.traceEvent('command-executeSelectionCopyPaste')
 
     const editor = vscode.window.activeTextEditor
     if (!editor) {
@@ -957,7 +944,6 @@ export async function executeInREPL(code: string, { filename = 'code', line = 0,
 const interrupts = []
 let last_interrupt_index = -1
 async function interrupt() {
-    telemetry.traceEvent('command-interrupt')
     // always send out internal interrupt
     await softInterrupt()
     // but we'll try sending a SIGINT if more than 3 interrupts were sent in the last second
@@ -978,7 +964,6 @@ async function softInterrupt() {
 }
 
 function signalInterrupt() {
-    telemetry.traceEvent('command-signal-interrupt')
     try {
         if (process.platform !== 'win32') {
             g_terminal.processId.then(pid => process.kill(pid, 'SIGINT'))
@@ -993,7 +978,6 @@ function signalInterrupt() {
 // code execution end
 
 async function cdToHere(uri: vscode.Uri) {
-    telemetry.traceEvent('command-cdHere')
 
     const uriPath = await getDirUriFsPath(uri)
     await startREPL(true, false)
@@ -1007,7 +991,6 @@ async function cdToHere(uri: vscode.Uri) {
 }
 
 async function activateHere(uri: vscode.Uri) {
-    telemetry.traceEvent('command-activateThisEnvironment')
 
     const uriPath = await getDirUriFsPath(uri)
     activatePath(uriPath)
@@ -1132,7 +1115,7 @@ export async function replStartDebugger(pipename: string) {
 }
 
 export function activate(context: vscode.ExtensionContext, fricasExecutablesFeature: FriCASExecutablesFeature) {
-    g_context = context
+    //g_context = context
     g_fricasExecutablesFeature = fricasExecutablesFeature
 
     context.subscriptions.push(

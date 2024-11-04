@@ -8,7 +8,6 @@ import stringArgv from 'string-argv'
 import * as vscode from 'vscode'
 import { onDidChangeConfig } from './extension'
 import { FriCASGlobalDiagnosticOutputFeature } from './globalDiagnosticOutput'
-import { setCurrentFriCASVersion, traceEvent } from './telemetry'
 import { resolvePath } from './utils'
 //import { getEnvName } from './spadpkgenv'
 
@@ -101,8 +100,6 @@ export class FriCASExecutablesFeature {
 
         if (newFriCASExecutable) {
             this.actualFriCASExePath = newFriCASExecutable
-            setCurrentFriCASVersion(this.actualFriCASExePath.version)
-            traceEvent('configured-new-fricas-binary')
             return true
         }
         else {

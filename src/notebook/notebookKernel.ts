@@ -16,8 +16,6 @@ import {
 } from 'vscode-jsonrpc/node'
 import { getAbsEnvPath } from '../spadpkgenv'
 import { FriCASExecutable } from '../fricasexepath'
-import { getCrashReportingPipename, handleNewCrashReportFromException } from '../telemetry'
-//import { generatePipeName, inferFriCASNumThreads } from '../utils'
 import { generatePipeName } from '../utils'
 import { FriCASNotebookFeature } from './notebookFeature'
 
@@ -316,7 +314,7 @@ export class FriCASKernel {
                 env['FRICAS_NUM_THREADS'] = nthreads
             }*/
 
-            this.outputChannel.appendLine(`Now strating the kernel process from the extension with '${this.fricasExecutable.file}', '${args}'.`)
+            this.outputChannel.appendLine(`Now starting the kernel process from the extension with '${this.fricasExecutable.file}', '${args}'.`)
 
             this._kernelProcess = spawn(
                 this.fricasExecutable.file,
@@ -325,7 +323,7 @@ export class FriCASKernel {
                     ...args,
                     path.join(this.extensionPath, 'scripts', 'notebook', 'notebook.input'),
                     pn,
-                    getCrashReportingPipename(),
+                    //getCrashReportingPipename(),
                 ],
                 {
                     env,
@@ -369,7 +367,6 @@ export class FriCASKernel {
             this.dispose()
         }
         catch (err) {
-            handleNewCrashReportFromException(err, 'Extension')
             throw (err)
         }
     }

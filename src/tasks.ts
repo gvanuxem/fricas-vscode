@@ -3,8 +3,6 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import * as spadpkgenv from './spadpkgenv'
 import { FriCASExecutablesFeature } from './fricasexepath'
-import * as telemetry from './telemetry'
-//import { inferFriCASNumThreads } from './utils'
 
 class FriCASTaskProvider {
     constructor(private context: vscode.ExtensionContext, private fricasExecutablesFeature: FriCASExecutablesFeature) { }
@@ -26,7 +24,6 @@ class FriCASTaskProvider {
     }
 
     async provideFriCASTasksForFolder(folder: vscode.WorkspaceFolder) {
-        telemetry.traceEvent('task-provide')
         const emptyTasks: vscode.Task[] = []
 
         if (folder.uri.scheme !== 'file') {

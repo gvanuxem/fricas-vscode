@@ -3,7 +3,6 @@ import * as rpc from 'vscode-jsonrpc'
 import { ResponseError } from 'vscode-jsonrpc'
 import * as vslc from 'vscode-languageclient/node'
 import { onSetLanguageClient } from '../extension'
-import * as telemetry from '../telemetry'
 import { registerCommand, wrapCrashReporting } from '../utils'
 import { VersionedTextDocumentPositionParams } from './misc'
 import { onExit, onInit } from './repl'
@@ -139,9 +138,6 @@ async function isModuleLoaded(mod: string) {
     try {
         return await g_connection.sendRequest(requestTypeIsModuleLoaded, { mod: mod })
     } catch (err) {
-        if (g_connection) {
-            telemetry.handleNewCrashReportFromException(err, 'Extension')
-        }
         return false
     }
 }
@@ -151,9 +147,7 @@ async function chooseModule() {
     try {
         possibleModules = await g_connection.sendRequest(requestTypeGetModules, null)
     } catch (err) {
-        if (g_connection) {
-            telemetry.handleNewCrashReportFromException(err, 'Extension')
-        } else {
+        if (!g_connection) {
             vscode.window.showInformationMessage('Setting a module requires an active REPL.')
         }
         return

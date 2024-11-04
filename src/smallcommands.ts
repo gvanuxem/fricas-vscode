@@ -1,7 +1,6 @@
 import * as fs from 'async-file'
 import * as path from 'path'
 import * as vscode from 'vscode'
-import * as telemetry from './telemetry'
 import { registerCommand } from './utils'
 
 /*
@@ -13,7 +12,6 @@ function toggleLinter() {
 }*/
 
 function applyTextEdit(we) {
-    telemetry.traceEvent('command-applytextedit')
 
     const wse = new vscode.WorkspaceEdit()
     for (const edit of we.documentChanges[0].edits) {

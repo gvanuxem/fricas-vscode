@@ -3,7 +3,6 @@
 import * as vscode from 'vscode'
 import * as rpc from 'vscode-jsonrpc'
 import { Disposable, MessageConnection } from 'vscode-jsonrpc'
-import { handleNewCrashReportFromException } from '../telemetry'
 import { wrapCrashReporting } from '../utils'
 import { getModuleForEditor } from './modules'
 import { onExit, onInit } from './repl'
@@ -62,7 +61,6 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
                     }
                 }
                 catch(err) {
-                    handleNewCrashReportFromException(err, 'Extension')
                     throw (err)
                 }
             })()

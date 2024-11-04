@@ -6,7 +6,6 @@ import * as vscode from 'vscode'
 import * as vslc from 'vscode-languageclient/node'
 import { onSetLanguageClient } from './extension'
 import { FriCASExecutablesFeature } from './fricasexepath'
-import * as telemetry from './telemetry'
 import { registerCommand, resolvePath } from './utils'
 
 let g_languageClient: vslc.LanguageClient = null
@@ -60,7 +59,6 @@ export async function switchEnvToPath(envpath: string, notifyLS: boolean) {
 }
 
 async function changeFriCASEnvironment() {
-    telemetry.traceEvent('changeCurrentEnvironment')
 
     const optionsEnv: vscode.QuickPickOptions = {
         placeHolder: 'Select environment'
@@ -129,7 +127,7 @@ async function getDefaultEnvPath() {
                 }
             }
         }
-        
+
         //const fricasExecutable = await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()
         /*const res = '/home/greg'/*await execFile(
             fricasExecutable.file,

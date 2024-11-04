@@ -9,7 +9,6 @@ import * as rpc from 'vscode-jsonrpc/node'
 import { Subject } from 'await-notify'
 import { FriCASExecutablesFeature } from '../fricasexepath'
 import { join } from 'path'
-import { getCrashReportingPipename, handleNewCrashReportFromException } from '../telemetry'
 import { getAbsEnvPath } from '../spadpkgenv'
 import { TestProcessNode, WorkspaceFeature } from '../interactive/workspace'
 import { cpus } from 'os'
@@ -157,8 +156,7 @@ export class TestProcess {
                 pipename,
                 `v:${projectPath}`,
                 `v:${packagePath}`,
-                `v:${packageName}`,
-                getCrashReportingPipename()
+                `v:${packageName}`
             ],
             {
                 env: {
@@ -196,7 +194,6 @@ export class TestProcess {
 
         this.process.on('error', (err: Error) => {
             connected.notify()
-            handleNewCrashReportFromException(err, 'Extension')
             this.launchError = err
         })
 
@@ -284,7 +281,6 @@ export class TestFeature {
                     await this.runHandler(request, token)
                 }
                 catch (err) {
-                    handleNewCrashReportFromException(err, 'Extension')
                     throw (err)
                 }
             }, true)
@@ -300,7 +296,6 @@ export class TestFeature {
         // this.controller.createRunProfile('Coverage', vscode.TestRunProfileKind.Coverage, this.runHandler.bind(this), false)
         }
         catch (err) {
-            handleNewCrashReportFromException(err, 'Extension')
             throw (err)
         }
     }

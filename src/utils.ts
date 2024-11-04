@@ -3,7 +3,6 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import * as vslc from 'vscode-languageclient'
 import { VersionedTextDocumentPositionParams } from './interactive/misc'
-import { handleNewCrashReportFromException } from './telemetry'
 
 export function constructCommandString(cmd: string, args: any = {}) {
     return `command:${cmd}?${encodeURIComponent(JSON.stringify(args))}`
@@ -70,7 +69,6 @@ export function registerCommand(cmd: string, f) {
         try {
             return f(...args)
         } catch (err) {
-            handleNewCrashReportFromException(err, 'Extension')
             throw (err)
         }
     }
@@ -82,7 +80,6 @@ export function wrapCrashReporting(f) {
         try {
             return f(...args)
         } catch (err) {
-            handleNewCrashReportFromException(err, 'Extension')
             throw (err)
         }
     }

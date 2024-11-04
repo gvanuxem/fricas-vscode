@@ -19,7 +19,6 @@ import { FriCASExecutablesFeature } from './fricasexepath'
 //import { FriCASNotebookFeature } from './notebook/notebookFeature'
 import * as smallcommands from './smallcommands'
 import * as tasks from './tasks'
-import * as telemetry from './telemetry'
 import { registerCommand, setContext } from './utils'
 import { FriCASGlobalDiagnosticOutputFeature } from './globalDiagnosticOutput'
 
@@ -38,13 +37,12 @@ export const increaseIndentPattern: RegExp = /^(\s*|.*=\s*|.*@\w*\s*)[\w\s]*(?:[
 export const decreaseIndentPattern: RegExp = /^\s*(else|else\s+if)\b.*$/
 
 export async function activate(context: vscode.ExtensionContext) {
-    await telemetry.init(context)
     try {
         setContext('fricas.isActive', true)
 
-        telemetry.traceEvent('activate')
+        //telemetry.traceEvent('activate')
 
-        telemetry.startLsCrashServer()
+        //telemetry.startLsCrashServer()
 
         g_context = context
         console.debug('Activating extension language-fricas')
@@ -121,7 +119,6 @@ export async function activate(context: vscode.ExtensionContext) {
         return api
     }
     catch (err) {
-        telemetry.handleNewCrashReportFromException(err, 'Extension')
         throw (err)
     }
 }
@@ -223,7 +220,6 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
         g_startupNotification.hide()
         return
     }
-    console.warn('here: starting language client server options exec option set')
     const serverOptions: ServerOptions = Boolean(process.env.DETACHED_LS) ?
         async () => {
             // TODO Add some loop here that retries in case the LSP is not yet ready
@@ -251,7 +247,7 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
     if (!g_traceOutputChannel) {
         g_traceOutputChannel = vscode.window.createOutputChannel('FriCAS Language Server Trace')
     }
-    console.warn('here: starting language client 1')
+
     const clientOptions: LanguageClientOptions = {
         documentSelector: selector,
         synchronize: {
@@ -269,11 +265,6 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
     // Create the language client and start the client.
     const languageClient = new LanguageClient('fricas', 'FriCAS Language Server', serverOptions, clientOptions)
     languageClient.registerProposedFeatures()
-    languageClient.onTelemetry((data: any) => {
-        if (data.command === 'trace_event') {
-            telemetry.traceEvent(data.message)
-        }
-    })
 
     if (g_watchedEnvironmentFile) {
         unwatchFile(g_watchedEnvironmentFile)
@@ -290,7 +281,7 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
             }
         })
     }
-    console.warn('here: starting language client 2')
+
     try {
         g_startupNotification.command = 'language-fricas.showLanguageServerOutput'
         setLanguageClient(languageClient)

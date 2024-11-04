@@ -8,7 +8,6 @@ import { DebugProtocol } from '@vscode/debugprotocol'
 import { createMessageConnection, MessageConnection, StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node'
 import { replStartDebugger } from '../interactive/repl'
 import { FriCASExecutable } from '../fricasexepath'
-import { getCrashReportingPipename } from '../telemetry'
 import { generatePipeName, inferFriCASNumThreads } from '../utils'
 import { notifyTypeDebug, notifyTypeExec, notifyTypeOurFinished, notifyTypeRun, notifyTypeSetCompiledItems, notifyTypeSetCompiledMode, notifyTypeStopped, requestTypeBreakpointLocations, requestTypeContinue, requestTypeDisconnect, requestTypeEvaluate, requestTypeExceptionInfo, requestTypeNext, requestTypeRestartFrame, requestTypeScopes, requestTypeSetBreakpoints, requestTypeSetExceptionBreakpoints, requestTypeSetFunctionBreakpoints, requestTypeSetVariable, requestTypeSource, requestTypeStackTrace, requestTypeStepIn, requestTypeStepInTargets, requestTypeStepOut, requestTypeTerminate, requestTypeThreads, requestTypeVariables } from './debugProtocol'
 
@@ -235,8 +234,7 @@ export class FriCASDebugSession extends LoggingDebugSession {
                 'debugger',
                 'run_debugger.input'
             ),
-            pn,
-            getCrashReportingPipename(),
+            pn
         ]
 
         const env = {
