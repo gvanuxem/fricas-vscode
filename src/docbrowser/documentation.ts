@@ -132,7 +132,6 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
     }
 
     async showDocumentation() {
-        // telemetry.traceEvent('command-showdocumentation')
         const editor = vscode.window.activeTextEditor
         if (!editor) { return }
 

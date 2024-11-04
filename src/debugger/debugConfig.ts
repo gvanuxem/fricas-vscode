@@ -238,7 +238,7 @@ export function activate(context: vscode.ExtensionContext) {
     setContext('fricas.debuggerCompiledMode', false)
 
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('debugger-compiled', provider),
+        vscode.window.registerTreeDataProvider('fricas-debugger-compiled', provider),
         vscode.commands.registerCommand('language-fricas.switchToCompiled', (item: DebugConfigTreeItem) => {
             provider.switchStatus(item, true, false)
         }),

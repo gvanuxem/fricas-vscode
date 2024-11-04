@@ -206,7 +206,7 @@ export class WorkspaceFeature {
         this.context.subscriptions.push(
             // registries
             vscode.window.registerTreeDataProvider(
-                'REPLVariables',
+                'FRICASREPLVariables',
                 this._REPLTreeDataProvider
             ),
             // listeners
