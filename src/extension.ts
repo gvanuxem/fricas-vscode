@@ -73,13 +73,50 @@ export async function activate(context: vscode.ExtensionContext) {
         //const compiledProvider = debugViewProvider.activate(context)
         g_fricasExecutablesFeature = new FriCASExecutablesFeature(context, globalDiagnosticOutputFeature)
         context.subscriptions.push(g_fricasExecutablesFeature)
-        await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync() // We run this function now and await to make sure we don't run in twice simultaneously later
 
         repl.activate(context, g_fricasExecutablesFeature)
         documentation.activate(context)
         tasks.activate(context, g_fricasExecutablesFeature)
         smallcommands.activate(context)
         spadpkgenv.activate(context, g_fricasExecutablesFeature)
+
+        // Should be in an another file
+        context.subscriptions.push(
+            vscode.commands.registerCommand('language-fricas.startDocumentation', () => {
+              const panel = vscode.window.createWebviewPanel(
+                'language-fricas',
+                'FriCAS Library Documentation',
+                vscode.ViewColumn.One,
+                {
+                  //localResourceRoots: [vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html')],
+                  enableScripts: true,
+                  retainContextWhenHidden: true,
+                  enableCommandUris: true
+                }
+              );
+
+              //const onDiskPath = vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html/api/index/html/index.html');
+              //const catGifSrc = panel.webview.asWebviewUri(onDiskPath);
+              const index = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')
+              panel.webview.html = getWebviewContent(index)
+
+              // Update contents based on view state changes
+              /*
+              panel.onDidChangeViewState(
+                e => {
+                  const panel = e.webviewPanel;
+                  switch (panel.viewColumn) {
+                    case vscode.ViewColumn.One:
+                      updateWebviewForFriCAS(panel, 'FriCAS Documentation');
+                      return;
+                  }
+                },
+                null,
+                context.subscriptions
+              );*/
+            })
+          );
+
 
         const workspaceFeature = new WorkspaceFeature(context)
         context.subscriptions.push(workspaceFeature)
@@ -115,12 +152,59 @@ export async function activate(context: vscode.ExtensionContext) {
             },
             executeInREPL: repl.executeInREPL
         }
-
         return api
     }
     catch (err) {
         throw (err)
     }
+}
+
+function getWebviewContent(index : string) {
+    const linkUri = {
+        scheme: 'https',
+        path: '/',
+        authority: index //gvanuxem.github.io/jlfricas.documentation/api/
+    };
+	const thisEditorParams = [vscode.Uri.parse(index)];
+	const besideEditorParams = [
+		linkUri,
+		vscode.ViewColumn.Beside
+	];
+/*
+  // See: https://www.eliostruyf.com/command-uri-vscode-webview-open-files-links/
+  const fileUri = {
+    scheme: 'file',
+    path: '/usr/local/lib/fricas/target/x86_64-linux-gnu/share/doc/html/api/index.html',
+    authority: ''
+  };
+  return (
+      <>
+        <a href={`command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}`}>Open link</a>
+      </>
+  )"
+}*/
+return `
+  <!DOCTYPE html>
+  <head>
+    <title>riCAS Library Documentation</title>
+  </head>
+  <body>
+  <h1>FriCAS Documentation</h1>
+  <p>
+		<p>
+		    <a href="command:vscode.open?${encodeURIComponent(
+				JSON.stringify(thisEditorParams)
+			)}">open in this editor</a>
+		</p>
+		<p>
+		<a href="command:vscode.open?${encodeURIComponent(
+				JSON.stringify(besideEditorParams)
+			)}">open beside</a>
+		</p>
+        <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}">FriCAS Documentation</a>
+  </body>
+  </p>
+  </html>`;
 }
 
 // this method is called when your extension is deactivated
@@ -166,6 +250,9 @@ export const onDidChangeConfig = g_onDidChangeConfig.event
 function changeConfig(event: vscode.ConfigurationChangeEvent) {
     g_onDidChangeConfig.fire(event)
     if (event.affectsConfiguration('fricas.executablePath')) {
+        restartLanguageServer()
+    }
+    if (event.affectsConfiguration('fricas.documentationFilePath')) {
         restartLanguageServer()
     }
 }

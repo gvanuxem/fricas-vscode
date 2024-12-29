@@ -300,6 +300,11 @@
                 "command": "language-fricas.stopKernel",
                 "title": "Stop",
                 "icon": "$(debug-stop)"
+            },
+            {
+                "command": "language-fricas.startDocumentation",
+                "title": "Show FriCAS Library Documentation",
+                "category": "Fricas"
             }
         ],
         "menus": {
@@ -682,6 +687,12 @@
                     "description": "Path to a fricas environment. VS Code needs to be reloaded for changes to take effect.",
                     "scope": "window"
                 },
+                "fricas.documentationFilePath": {
+                    "type": "string",
+                    "default": "gvanuxem.github.io/jlfricas.documentation/api",
+                    "description": "Points to the fricas documentation index.html file.",
+                    "scope": "machine-overridable"
+                },
                 "fricas.numTestProcesses": {
                     "type": "integer",
                     "default": 1,
@@ -1049,6 +1060,7 @@
         "@vscode/debugadapter": "^1.55.1",
         "@vscode/debugprotocol": "^1.55.1",
         "@vscode/test-electron": "^2.2.0",
+        "@vscode/webview-ui-toolkit": "^1.4.0",
         "applicationinsights": "^2",
         "async-file": "^v2.0.2",
         "await-notify": "^1.0.1",
@@ -1068,7 +1080,7 @@
         "@types/download": "^8.0.1",
         "@types/markdown-it": "^12.2.3",
         "@types/mocha": "^9.1.0",
-        "@types/node": "^16",
+        "@types/node": "^18",
         "@types/semver": "^7.3.9",
         "@types/source-map-support": "^0.5.4",
         "@types/vscode": "1.78.0",
