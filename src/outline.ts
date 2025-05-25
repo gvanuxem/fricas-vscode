@@ -16,7 +16,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
 
             for (let i = 0; i < document.lineCount; i++) {
                 const line = document.lineAt(i)
-                if (!line.text.match(/^\s*--/)) {// && !line.text.match(/^\s*\+\+/)) {
+                if (!line.text.match(/^\s*--/) && !line.text.match(/^\s+\+\+/)) {
                     if (line.text.startsWith(')abbrev')) {
                         const tokens = line.text.split(/\s+/g)
                         if (inside_function) {
