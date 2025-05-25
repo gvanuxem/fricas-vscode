@@ -69,7 +69,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                         inside_function = true
                     }
                     else if (line.text.match(/\s+\w+.*[-*+\/<>=^].*==/g) ||
-                                line.text.match(/\s+-.*==/g)) {
+                                line.text.match(/^(?:(?!\"==).)*==.*$/g)) {
                         const tokens = line.text.split(/==/g)
                         if (inside_function) {
                             nodes.pop()
