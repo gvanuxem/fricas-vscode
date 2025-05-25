@@ -17,7 +17,12 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
             for (let i = 0; i < document.lineCount; i++) {
                 const line = document.lineAt(i)
                 if (!line.text.match(/^\s*--/) && !line.text.match(/^\s+\+\+/)) {
-                    if (line.text.startsWith(')abbrev')) {
+                    // TODO: Bad hack
+                    // foo(x) == if x = "==" then "==" else ""
+                    if (line.text.match(/"=="/g)) {
+                        continue
+                    }
+                    else if (line.text.startsWith(')abbrev')) {
                         const tokens = line.text.split(/\s+/g)
                         if (inside_function) {
                             nodes.pop()
@@ -69,7 +74,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                         inside_function = true
                     }
                     else if (line.text.match(/\s+\w+.*[-*+\/<>=^].*==/g) ||
-                                line.text.match(/^(?:(?!\"==).)*==.*$/g)) {
+                                line.text.match(/\s+-.*==/g)) {
                         const tokens = line.text.split(/==/g)
                         if (inside_function) {
                             nodes.pop()
