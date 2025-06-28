@@ -58,7 +58,7 @@ export class FriCASExecutablesFeature {
     async tryFriCASExePathAsync(newPath: string) {
         try {
             let parsedPath = ''
-            let parsedArgs = []
+            let parsedArgs = ['-nosman']
 
             if (path.isAbsolute(newPath) && await exists(newPath)) {
                 parsedPath = newPath
@@ -73,14 +73,14 @@ export class FriCASExecutablesFeature {
                     const argv = stringArgv(newPath)
 
                     parsedPath = argv[0]
-                    parsedArgs = argv.slice(1)
+                    //parsedArgs = argv.slice(1)
                 }
             }
 
             const { stdout, } = await execFile(parsedPath, ['--version'])
 
             const versionArrayFromFriCAS = stdout.toString().split('\n')
-            //const versionArrayFromFriCAS = ['FriCAS 1.3.12-dev']
+            //const versionArrayFromFriCAS = ['FriCAS 1.3.13-dev']
             const versionStringFromFriCAS = versionArrayFromFriCAS[0].trim()
 
             const versionPrefix = `FriCAS `

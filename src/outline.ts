@@ -16,7 +16,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
 
             for (let i = 0; i < document.lineCount; i++) {
                 const line = document.lineAt(i)
-                if (!line.text.match(/^\s*--/) && !line.text.match(/^\s+\+\+/)) {
+                if (!line.text.match(/^\s*--/) && !line.text.match(/^\s+\+\+\s\s/)) {
                     // TODO: Bad hack
                     // foo(x) == if x = "==" then "==" else ""
                     if (line.text.match(/"=="/g)) {

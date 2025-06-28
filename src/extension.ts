@@ -1,7 +1,7 @@
 'use strict'
 import * as sourcemapsupport from 'source-map-support'
 import * as fs from 'async-file'
-import { unwatchFile, watchFile } from 'async-file'
+//import { unwatchFile, watchFile } from 'async-file'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
@@ -26,14 +26,14 @@ sourcemapsupport.install({ handleUncaughtExceptions: false })
 
 let g_languageClient: LanguageClient = null
 let g_context: vscode.ExtensionContext = null
-let g_watchedEnvironmentFile: string = null
+//let g_watchedEnvironmentFile: string = null
 let g_startupNotification: vscode.StatusBarItem = null
 let g_fricasExecutablesFeature: FriCASExecutablesFeature = null
 
 let g_traceOutputChannel: vscode.OutputChannel = null
 let g_outputChannel: vscode.OutputChannel = null
 
-export const increaseIndentPattern: RegExp = /^(\s*|.*=\s*|.*@\w*\s*)[\w\s]*(?:["'`][^"'`]*["'`])*[\w\s]*\b(if|while|.*\)\s*do|else|else\s+if)\b(?!(?:.*\bend\b(\s*|\s*#.*)$)|(?:[^\[]*\].*)$).*$/
+export const increaseIndentPattern: RegExp = /^(\s*|.*=\s*|.*@\w*\s*)[\w\s]*(?:["'`][^"'`]*["'`])*[\w\s]*\b(if|while|.*\)\s*do|else|else\s+if)\b(?!(?:[^\[]*\].*)$).*$/
 export const decreaseIndentPattern: RegExp = /^\s*(else|else\s+if)\b.*$/
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -236,7 +236,7 @@ export async function withLanguageClient(
     }
 
     try {
-        return callback(g_languageClient)
+        return await callback(g_languageClient)
     } catch (err) {
         if (err.message === 'Language client is not ready yet') {
             return callbackOnHandledErr(err)
@@ -353,26 +353,32 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
     const languageClient = new LanguageClient('fricas', 'FriCAS Language Server', serverOptions, clientOptions)
     languageClient.registerProposedFeatures()
 
-    if (g_watchedEnvironmentFile) {
-        unwatchFile(g_watchedEnvironmentFile)
-    }
+    //if (g_watchedEnvironmentFile) {
+    //    unwatchFile(g_watchedEnvironmentFile)
+    //}
 
     // automatic environement refreshing
     //g_watchedEnvironmentFile = (await spadpkgenv.getProjectFilePaths(fricasEnvPath)).manifest_toml_path
     // polling watch for robustness
-    if (g_watchedEnvironmentFile) {
-        watchFile(g_watchedEnvironmentFile, { interval: 10000 }, async (curr, prev) => {
-            if (curr.mtime > prev.mtime) {
-                if (!languageClient.needsStop()) { return } // this client already gets stopped
-                await refreshLanguageServer(languageClient)
-            }
-        })
-    }
+    //if (g_watchedEnvironmentFile) {
+    //    watchFile(g_watchedEnvironmentFile, { interval: 10000 }, async (curr, prev) => {
+    //        if (curr.mtime > prev.mtime) {
+    //            if (!languageClient.needsStop()) { return } // this client already gets stopped
+    //            await refreshLanguageServer(languageClient)
+    //        }
+    //    })
+    //}
 
     try {
         g_startupNotification.command = 'language-fricas.showLanguageServerOutput'
+        g_startupNotification.text = 'FriCAS: Starting Language Server part 2…'
+        g_startupNotification.show()
         setLanguageClient(languageClient)
+        g_startupNotification.text = 'FriCAS: Starting Language Server part 3…'
+        g_startupNotification.show()
         await languageClient.start()
+        g_startupNotification.text = 'FriCAS: Language server started.'
+        g_startupNotification.show()
     }
     catch (e) {
         vscode.window.showErrorMessage('[3] Could not start the FriCAS language server. Make sure the configuration setting fricas.executablePath points to the FriCAS binary.', 'Open Settings').then(val => {
@@ -383,17 +389,6 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
         setLanguageClient()
     }
     g_startupNotification.hide()
-}
-
-async function refreshLanguageServer(languageClient: LanguageClient = g_languageClient) {
-    if (!languageClient) { return }
-    try {
-        await languageClient.sendNotification('fricas/refreshLanguageServer')
-    } catch (err) {
-        vscode.window.showErrorMessage('Failed to refresh the language server cache.', {
-            detail: err
-        })
-    }
 }
 
 async function restartLanguageServer(languageClient: LanguageClient = g_languageClient) {

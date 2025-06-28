@@ -350,6 +350,10 @@
           "name": "keyword.operator.relation.in.fricas"
         },
         {
+          "match": "__",
+          "name": "keyword.operator.double_escape.fricas"
+        },
+        {
           "match": "(?:\\.(?=(?:@|_|\\p{L}))|\\.\\.+)",
           "name": "keyword.operator.dots.fricas"
         },
