@@ -16,7 +16,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
 
             for (let i = 0; i < document.lineCount; i++) {
                 const line = document.lineAt(i)
-                if (!line.text.match(/^\s*--/) && !line.text.match(/^\s+\+\+\s\s/)) {
+                if (!line.text.match(/^\s*--/) && !line.text.match(/^ \s+\+\+\s\s/)) {
                     // TODO: Bad hack
                     // foo(x) == if x = "==" then "==" else ""
                     if (line.text.match(/"=="/g)) {
@@ -41,7 +41,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                         nodes[nodes.length-1].push(user_symbol)
                         nodes.push(user_symbol.children)
                     }
-                    else if (line.text.match(/^\+\+\s*\w.*:/)) {
+                    else if (line.text.match(/^\+\+\s[a-zA-Z\s]+:/)) {
                         const tokens = line.text.split(/:/g)
                         const marker_symbol = new vscode.DocumentSymbol(
                             tokens[0],
