@@ -47,7 +47,8 @@
                 "extensions": [
                     ".spad",
                     ".input",
-                    ".as"
+                    ".as",
+                    ".boot"
                 ]
             }
         ],

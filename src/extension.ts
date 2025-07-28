@@ -371,12 +371,9 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
 
     try {
         g_startupNotification.command = 'language-fricas.showLanguageServerOutput'
-        g_startupNotification.text = 'FriCAS: Starting Language Server part 2…'
-        g_startupNotification.show()
         setLanguageClient(languageClient)
-        g_startupNotification.text = 'FriCAS: Starting Language Server part 3…'
-        g_startupNotification.show()
-        await languageClient.start()
+        //await languageClient.start()
+        languageClient.start()
         g_startupNotification.text = 'FriCAS: Language server started.'
         g_startupNotification.show()
     }

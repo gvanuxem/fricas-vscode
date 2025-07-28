@@ -19,10 +19,19 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                 if (!line.text.match(/^\s*--/) && !line.text.match(/^ \s+\+\+\s\s/)) {
                     // TODO: Bad hack
                     // foo(x) == if x = "==" then "==" else ""
-                    if (line.text.match(/"=="/g)) {
-                        continue
+                    // TODO: definition inside definition (Boot):
+                    // "append"/[[f for j in 1..ncols] for i in 1..nrows] where f ==
+                    if (line.text.startsWith(')package')) {
+                        const tokens = line.text.split(/\s+/g)
+                        const user_symbol = new vscode.DocumentSymbol(
+                            tokens[1],
+                            tokens[0],
+                            vscode.SymbolKind.Package,
+                            line.range, line.range)
+                        nodes[nodes.length-1].push(user_symbol)
+                        nodes.push(user_symbol.children)
                     }
-                    else if (line.text.startsWith(')abbrev')) {
+                    if (line.text.startsWith(')abbrev')) {
                         const tokens = line.text.split(/\s+/g)
                         if (inside_function) {
                             nodes.pop()
@@ -41,7 +50,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                         nodes[nodes.length-1].push(user_symbol)
                         nodes.push(user_symbol.children)
                     }
-                    else if (line.text.match(/^\+\+\s[a-zA-Z\s]+:/)) {
+                    else if (line.text.match(/^\+\+\s[a-zA-Z][a-zA-Z\s]+:/)) {
                         const tokens = line.text.split(/:/g)
                         const marker_symbol = new vscode.DocumentSymbol(
                             tokens[0],
@@ -59,7 +68,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                             line.range, line.range)
                         nodes[nodes.length-1].push(marker_symbol)
                     }
-                    else if (line.text.match(/\s+\w[\?!]?.*==/g)) {
+                    else if (line.text.match(/\s*\w[\?!]?.*==/g)) {
                         const tokens = line.text.split(/==/g)
                         if (inside_function) {
                             nodes.pop()
