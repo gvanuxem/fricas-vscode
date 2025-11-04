@@ -6,11 +6,22 @@ This [VS Code](https://code.visualstudio.com) extension provides support for the
 
 ## Getting started
 
+### Building the extension
+1. Clone the repository:
+    git clone  https://github.com/gvanuxem/fricas-vscode
+2. Install npm for your distro/system (Node.js package manager)
+3. Install vsce using npm:
+    * Run `sudo npm install -g @vscode/vsce` in a terminal.
+4. Install required node modules:
+    * Run `npm install` in the root directory
+5. Build the extension:
+    * Run `vsce package`
+
 ### Installing FriCAS/VS Code/VS Code FriCAS extension
 1. Install FriCAS for your platform: https://github.com/fricas/fricas/releases/
 2. Install VS Code for your platform: https://code.visualstudio.com/download or
-    install the open source version, on a Debian like system issue
-    <code>apt install code-oss</code> in a terminal. At the end of this step you
+    install the open source version, on a Debian-based system issue
+    <code>sudo apt install code-oss</code> in a terminal. At the end of this step you
     should be able to start VS Code.
 3.  1. Start VS Code.
     2. Inside VS Code, go to the extensions view either by
