@@ -3,7 +3,7 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import { withLanguageClient } from '../extension'
 import { constructCommandString, getVersionedParamsAtPosition, registerCommand } from '../utils'
-import { g_connection, requestTypeGetDocAt, requestTypeGetDocFromWord } from '../interactive/repl'
+import { g_connection, requestTypeGetDocAt, requestTypeGetDocFromWord, executeInREPL } from '../interactive/repl'
 
 function openArgs(href: string) {
     const matches = href.match(/^((\w+\:\/\/)?.+?)(?:[\:#](\d+))?$/)
@@ -105,7 +105,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         if (!wordRange) { return null }
         const word = document.getText(wordRange)
 
-        const docAsMD = await this.getDocumentationFromWord(word)
+        // Don't auto-start a REPL from hover — only use existing connections
+        const docAsMD = await this.getDocumentationFromWord(word, false)
         if (!docAsMD || token.isCancellationRequested) { return null }
 
         const mdString = new vscode.MarkdownString(docAsMD)
@@ -139,8 +140,9 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         this.setHTML(html)
     }
 
-    async getDocumentationFromWord(word: string): Promise<string> {
+    async getDocumentationFromWord(word: string, allowStartREPL: boolean = true): Promise<string> {
         const fetchPromise = (async () => {
+            // Try language client first (LSP)
             const lsResult = await withLanguageClient(
                 async languageClient => {
                     return await languageClient.sendRequest<string>('fricas/getDocFromWord', { word: word })
@@ -150,21 +152,59 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             )
             if (lsResult) { return lsResult }
 
+            // Try REPL message connection
             if (g_connection) {
                 try {
-                    return await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
+                    const replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
+                    if (replResult) { return replResult }
                 } catch (err) {
-                    console.error('REPL request failed', err)
+                    console.error('REPL message request failed, trying direct eval', err)
+                }
+            }
+
+            // Fallback: directly evaluate FriCAS documentation commands via REPL
+            // Only attempt if REPL is already running or we're allowed to start one
+            if (g_connection || allowStartREPL) {
+                try {
+                    const opResult = await executeInREPL(
+                        `jlGetOperationDocumentation('${word})$SDOC`,
+                        { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                    )
+                    const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
+                    if (opDoc) { return opDoc }
+
+                    const conResult = await executeInREPL(
+                        `jlGetConstructorDocumentation('${word})$SDOC`,
+                        { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                    )
+                    const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
+                    if (conDoc) { return conDoc }
+                } catch (err) {
+                    console.error('Direct REPL eval for doc failed', err)
                 }
             }
             return ''
         })()
 
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 2000)
+            setTimeout(() => resolve(''), 5000)
         })
 
         return Promise.race([fetchPromise, timeoutPromise])
+    }
+
+    private cleanReplDocResult(text: string): string {
+        if (!text) { return '' }
+        // Strip surrounding quotes if present
+        let cleaned = text.trim()
+        if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+            cleaned = cleaned.slice(1, -1)
+        }
+        // Remove trailing "Type: String" that FriCAS appends
+        cleaned = cleaned.replace(/\s*Type:\s*String\s*$/, '').trim()
+        // Unescape newlines
+        cleaned = cleaned.replace(/\\n/g, '\n')
+        return cleaned
     }
 
     async showDocumentation() {
@@ -195,16 +235,28 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
 
             if (g_connection) {
                 try {
-                    return await g_connection.sendRequest(requestTypeGetDocAt, params)
+                    const replResult = await g_connection.sendRequest(requestTypeGetDocAt, params)
+                    if (replResult) { return replResult }
                 } catch (err) {
-                    console.error('REPL request failed', err)
+                    console.error('REPL message request failed, trying direct eval', err)
                 }
+            }
+
+            // Fallback: extract word at cursor and evaluate FriCAS doc commands
+            try {
+                const wordRange = editor.document.getWordRangeAtPosition(editor.selection.start)
+                if (wordRange) {
+                    const word = editor.document.getText(wordRange)
+                    return await this.getDocumentationFromWord(word)
+                }
+            } catch (err) {
+                console.error('Direct REPL eval for doc failed', err)
             }
             return ''
         })()
 
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 2000)
+            setTimeout(() => resolve(''), 5000)
         })
 
         return Promise.race([fetchPromise, timeoutPromise])
@@ -383,9 +435,10 @@ You can search for documentation for domains, categories, packages, and operatio
 Alternatively, place your cursor on a word in the editor and use the **FriCAS: Show Documentation** command (shortcut: \`Alt+J Alt+D\`).
 
 ### Useful links:
-* [FriCAS Library Documentation](${vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')})
+* [FriCAS Local Library Documentation](${vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')})
+* [jlFriCAS home page](https://gvanuxem.github.io/jlfricas/)
+* [jlFriCAS Documentation pages](https://gvanuxem.github.io/jlfricas.documentation/)
 * [FriCAS API Documentation](https://fricas.github.io/api/)
-* [FriCAS Knowledge Base](https://github.com/fricas/fricas/wiki)
 `
     }
 }
