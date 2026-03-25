@@ -54,7 +54,7 @@ async function confirmKill() {
         return false
     }
 }
-async function stopREPL(onDeactivate=false) {
+async function stopREPL(onDeactivate = false) {
     const config = vscode.workspace.getConfiguration('fricas')
     if (Boolean(config.get('persistentSession.enabled')) && !onDeactivate) {
         try {
@@ -92,7 +92,7 @@ function sanitize(str: string) {
     return str.toLowerCase().replace(/[^\p{L}\p{N}_-]+/ug, '-')
 }
 function parseSessionArgs(name: string) {
-    if (name.match(/\$\[workspace\]/)){
+    if (name.match(/\$\[workspace\]/)) {
         const ed = vscode.window.activeTextEditor
         if (ed) {
             const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri)
@@ -205,7 +205,7 @@ async function connectREPL() {
         await _connectREPL(fricasIsConnectedPromise)
     } else {
         const copy = 'Copy code'
-        const always  = 'Always copy code'
+        const always = 'Always copy code'
         const click = await vscode.window.showInformationMessage(
             'Start a FriCAS session and execute the code copied into your clipboard by the button below into it.',
             always, copy
@@ -283,6 +283,10 @@ const requestTypeReplRunCode = new rpc.RequestType<{
     showErrorInREPL: boolean,
     softscope: boolean
 }, ReturnResult, void>('repl/runcode')
+
+export const requestTypeGetDocFromWord = new rpc.RequestType<{ word: string }, string, void>('repl/getDocFromWord')
+export const requestTypeGetDocAt = new rpc.RequestType<VersionedTextDocumentPositionParams, string, void>('repl/getDocAt')
+
 /*
 interface DebugLaunchParams {
     code: string,
@@ -568,7 +572,7 @@ async function executeFile(uri?: vscode.Uri | string) {
         const readBytes = await vscode.workspace.fs.readFile(uri)
         code = Buffer.from(readBytes).toString('utf8')
         isJmd = path.endsWith('.jmd') || path.endsWith('.md')
-    }  else {
+    } else {
         if (!editor) {
             return
         }
@@ -746,7 +750,7 @@ async function executeCell(shouldMove: boolean = false) {
         validateMoveAndReveal(ed, nextpos, nextpos)
     }
     if (vscode.workspace.getConfiguration('fricas').get<boolean>('execution.inlineResultsForCellEvaluation') === true) {
-        let currentPos: vscode.Position = ed.document.validatePosition(new vscode.Position(cellrange.start.line , cellrange.start.character + 1))
+        let currentPos: vscode.Position = ed.document.validatePosition(new vscode.Position(cellrange.start.line, cellrange.start.character + 1))
         let lastRange = new vscode.Range(0, 0, 0, 0)
         while (currentPos.line <= cellrange.end.line) {
             const [startPos, endPos, nextPos] = await getBlockRange(getVersionedParamsAtPosition(ed.document, currentPos))
@@ -876,7 +880,7 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
         return !isError
     } catch (err) {
         r.remove(true)
-        throw(err)
+        throw (err)
     }
 }
 

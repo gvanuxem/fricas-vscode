@@ -178,6 +178,10 @@
                 "icon": "$(arrow-right)"
             },
             {
+                "command": "language-fricas.search-word",
+                "title": "FriCAS: Search Word in Documentation"
+            },
+            {
                 "command": "language-fricas.show-plotpane",
                 "title": "FriCAS: Show Plot"
             },

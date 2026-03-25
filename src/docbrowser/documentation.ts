@@ -3,17 +3,15 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import { withLanguageClient } from '../extension'
 import { constructCommandString, getVersionedParamsAtPosition, registerCommand } from '../utils'
+import { g_connection, requestTypeGetDocAt, requestTypeGetDocFromWord } from '../interactive/repl'
 
 function openArgs(href: string) {
     const matches = href.match(/^((\w+\:\/\/)?.+?)(?:[\:#](\d+))?$/)
-    let uri
-    let line
-    if (matches[1] && matches[3] && matches[2] === undefined) {
-        uri = matches[1]
-        line = parseInt(matches[3])
-    } else {
-        uri = vscode.Uri.parse(matches[1])
+    if (!matches) {
+        return { uri: vscode.Uri.parse(href), line: undefined }
     }
+    const uri = vscode.Uri.parse(matches[1])
+    const line = matches[3] ? parseInt(matches[3]) : undefined
     return { uri, line }
 }
 
@@ -42,14 +40,14 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
     if (aIndex >= 0 && tokens[idx].attrs[aIndex][1] === '@ref' && tokens.length > idx + 1) {
         const commandUri = constructCommandString('language-fricas.search-word', { searchTerm: tokens[idx + 1].content })
         tokens[idx].attrs[aIndex][1] = vscode.Uri.parse(commandUri).toString()
-    } else if (aIndex >= 0 && tokens.length > idx + 1) {
-        const href = tokens[idx + 1].content
+    } else if (aIndex >= 0) {
+        const href = tokens[idx].attrs[aIndex][1]
         const { uri, line } = openArgs(href)
         let commandUri
         if (line === undefined) {
             commandUri = constructCommandString('vscode.open', uri)
         } else {
-            commandUri = constructCommandString('language-fricas.openFile', { path: uri, line })
+            commandUri = constructCommandString('language-fricas.openFile', { path: uri.toString(), line })
         }
         tokens[idx].attrs[aIndex][1] = commandUri
     }
@@ -66,11 +64,12 @@ export function activate(context: vscode.ExtensionContext) {
         registerCommand('language-fricas.browse-back-documentation', () => provider.browseBack()),
         registerCommand('language-fricas.browse-forward-documentation', () => provider.browseForward()),
         registerCommand('language-fricas.search-word', (params) => provider.findHelp(params)),
-        vscode.window.registerWebviewViewProvider('fricas-documentation', provider)
+        vscode.window.registerWebviewViewProvider('fricas-documentation', provider),
+        vscode.languages.registerHoverProvider({ scheme: 'file', language: 'fricas' }, provider)
     )
 }
 
-class DocumentationViewProvider implements vscode.WebviewViewProvider {
+class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.HoverProvider {
     private view?: vscode.WebviewView
     private context: vscode.ExtensionContext
 
@@ -88,19 +87,39 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             enableCommandUris: true
         }
-        view.webview.html = this.createWebviewHTML('Use the `language-fricas.show-documentation` command in an editor or search for documentation above.')
+        view.webview.html = this.createWebviewHTML(this.getLandingPageMD())
 
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
                 this.showDocumentationFromWord(msg.query)
+            } else if (msg.type === 'home') {
+                this.showLandingPage()
             } else {
                 console.error('unknown message received')
             }
         })
     }
 
+    async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | null> {
+        const wordRange = document.getWordRangeAtPosition(position)
+        if (!wordRange) { return null }
+        const word = document.getText(wordRange)
+
+        const docAsMD = await this.getDocumentationFromWord(word)
+        if (!docAsMD || token.isCancellationRequested) { return null }
+
+        const mdString = new vscode.MarkdownString(docAsMD)
+        mdString.isTrusted = true
+        return new vscode.Hover(mdString, wordRange)
+    }
+
     findHelp(params: { searchTerm: string }) {
         this.showDocumentationFromWord(params.searchTerm)
+    }
+
+    async showLandingPage() {
+        const html = this.createWebviewHTML(this.getLandingPageMD())
+        this.setHTML(html)
     }
 
     async showDocumentationPane() {
@@ -112,47 +131,83 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
     }
 
     async showDocumentationFromWord(word: string) {
-        const docAsMD = await this.getDocumentationFromWord(word)
-        if (!docAsMD) { return }
-
         await this.showDocumentationPane()
-        const html = this.createWebviewHTML(docAsMD)
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...'))
+
+        const docAsMD = await this.getDocumentationFromWord(word)
+        const html = this.createWebviewHTML(docAsMD || `No documentation found for \`${word}\`.`)
         this.setHTML(html)
     }
 
     async getDocumentationFromWord(word: string): Promise<string> {
-        return await withLanguageClient(
-            async languageClient => {
-                return await languageClient.sendRequest('fricas/getDocFromWord', { word: word })
-            }, err => {
-                console.error('LC request failed with ', err)
-                return ''
+        const fetchPromise = (async () => {
+            const lsResult = await withLanguageClient(
+                async languageClient => {
+                    return await languageClient.sendRequest<string>('fricas/getDocFromWord', { word: word })
+                }, err => {
+                    return ''
+                }
+            )
+            if (lsResult) { return lsResult }
+
+            if (g_connection) {
+                try {
+                    return await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
+                } catch (err) {
+                    console.error('REPL request failed', err)
+                }
             }
-        )
+            return ''
+        })()
+
+        const timeoutPromise = new Promise<string>((resolve) => {
+            setTimeout(() => resolve(''), 2000)
+        })
+
+        return Promise.race([fetchPromise, timeoutPromise])
     }
 
     async showDocumentation() {
         const editor = vscode.window.activeTextEditor
         if (!editor) { return }
 
+        await this.showDocumentationPane()
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...'))
+
         const docAsMD = await this.getDocumentation(editor)
-        if (!docAsMD) { return }
 
         this.forwardStack = [] // initialize forward page stack for manual search
-        await this.showDocumentationPane()
-        const html = this.createWebviewHTML(docAsMD)
+        const html = this.createWebviewHTML(docAsMD || 'No documentation found at current position.')
         this.setHTML(html)
     }
 
     async getDocumentation(editor: vscode.TextEditor): Promise<string> {
-        return await withLanguageClient(
-            async languageClient => {
-                return await languageClient.sendRequest<string>('fricas/getDocAt', getVersionedParamsAtPosition(editor.document, editor.selection.start))
-            }, err => {
-                console.error('LC request failed with ', err)
-                return ''
+        const params = getVersionedParamsAtPosition(editor.document, editor.selection.start)
+        const fetchPromise = (async () => {
+            const lsResult = await withLanguageClient(
+                async languageClient => {
+                    return await languageClient.sendRequest<string>('fricas/getDocAt', params)
+                }, err => {
+                    return ''
+                }
+            )
+            if (lsResult) { return lsResult }
+
+            if (g_connection) {
+                try {
+                    return await g_connection.sendRequest(requestTypeGetDocAt, params)
+                } catch (err) {
+                    console.error('REPL request failed', err)
+                }
             }
-        )
+            return ''
+        })()
+
+        const timeoutPromise = new Promise<string>((resolve) => {
+            setTimeout(() => resolve(''), 2000)
+        })
+
+        return Promise.race([fetchPromise, timeoutPromise])
     }
 
     createWebviewHTML(docAsMD: string) {
@@ -249,6 +304,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
 
     <body>
         <div class="search">
+            <button id="home-button" title="Go to Home"><i class="fas fa-home"></i></button>
             <input id="search-input" type="text" placeholder="Search"></input>
         </div>
         <div class="docs-main" style="padding: 50px 1em 1em 1em">
@@ -274,6 +330,9 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
                 }
             }
             document.getElementById('search-input').addEventListener('keydown', onKeyDown)
+            document.getElementById('home-button').addEventListener('click', () => {
+                vscode.postMessage({ type: 'home' })
+            })
         </script>
     </body>
 
@@ -311,5 +370,22 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider {
         if (!this.isBrowseForwardAvailable()) { return }
 
         this.setHTML(this.forwardStack.pop())
+    }
+
+    private getLandingPageMD() {
+        return `
+# FriCAS Documentation
+
+Welcome to the FriCAS documentation pane!
+
+You can search for documentation for domains, categories, packages, and operations by using the search bar above.
+
+Alternatively, place your cursor on a word in the editor and use the **FriCAS: Show Documentation** command (shortcut: \`Alt+J Alt+D\`).
+
+### Useful links:
+* [FriCAS Library Documentation](${vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')})
+* [FriCAS API Documentation](https://fricas.github.io/api/)
+* [FriCAS Knowledge Base](https://github.com/fricas/fricas/wiki)
+`
     }
 }

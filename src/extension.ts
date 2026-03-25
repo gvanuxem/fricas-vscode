@@ -6,7 +6,7 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import * as vscode from 'vscode'
-import { LanguageClient, LanguageClientOptions, RevealOutputChannelOn, ServerOptions} from 'vscode-languageclient/node'
+import { LanguageClient, LanguageClientOptions, RevealOutputChannelOn, ServerOptions } from 'vscode-languageclient/node'
 //import * as debugViewProvider from './debugger/debugConfig'
 //import { FriCASDebugFeature } from './debugger/debugFeature'
 import * as documentation from './docbrowser/documentation'
@@ -62,7 +62,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const SymbolProvider = new FriCASDocumentSymbolProvider()
         context.subscriptions.push(
             vscode.languages.registerDocumentSymbolProvider(
-                {scheme: "file", language: "fricas"},
+                { scheme: "file", language: "fricas" },
                 SymbolProvider
             )
         );
@@ -83,39 +83,39 @@ export async function activate(context: vscode.ExtensionContext) {
         // Should be in an another file
         context.subscriptions.push(
             vscode.commands.registerCommand('language-fricas.startDocumentation', () => {
-              const panel = vscode.window.createWebviewPanel(
-                'language-fricas',
-                'FriCAS Library Documentation',
-                vscode.ViewColumn.One,
-                {
-                  //localResourceRoots: [vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html')],
-                  enableScripts: true,
-                  retainContextWhenHidden: true,
-                  enableCommandUris: true
-                }
-              );
+                const panel = vscode.window.createWebviewPanel(
+                    'language-fricas',
+                    'FriCAS Library Documentation',
+                    vscode.ViewColumn.One,
+                    {
+                        //localResourceRoots: [vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html')],
+                        enableScripts: true,
+                        retainContextWhenHidden: true,
+                        enableCommandUris: true
+                    }
+                );
 
-              //const onDiskPath = vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html/api/index/html/index.html');
-              //const catGifSrc = panel.webview.asWebviewUri(onDiskPath);
-              const index = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')
-              panel.webview.html = getWebviewContent(index)
+                //const onDiskPath = vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html/api/index/html/index.html');
+                //const catGifSrc = panel.webview.asWebviewUri(onDiskPath);
+                const index = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')
+                panel.webview.html = getWebviewContent(index)
 
-              // Update contents based on view state changes
-              /*
-              panel.onDidChangeViewState(
-                e => {
-                  const panel = e.webviewPanel;
-                  switch (panel.viewColumn) {
-                    case vscode.ViewColumn.One:
-                      updateWebviewForFriCAS(panel, 'FriCAS Documentation');
-                      return;
-                  }
-                },
-                null,
-                context.subscriptions
-              );*/
+                // Update contents based on view state changes
+                /*
+                panel.onDidChangeViewState(
+                  e => {
+                    const panel = e.webviewPanel;
+                    switch (panel.viewColumn) {
+                      case vscode.ViewColumn.One:
+                        updateWebviewForFriCAS(panel, 'FriCAS Documentation');
+                        return;
+                    }
+                  },
+                  null,
+                  context.subscriptions
+                );*/
             })
-          );
+        );
 
 
         const workspaceFeature = new WorkspaceFeature(context)
@@ -159,31 +159,31 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 }
 
-function getWebviewContent(index : string) {
+function getWebviewContent(index: string) {
     const linkUri = {
         scheme: 'https',
         path: '/',
         authority: index //gvanuxem.github.io/jlfricas.documentation/api/
     };
-	const thisEditorParams = [vscode.Uri.parse(index)];
-	const besideEditorParams = [
-		linkUri,
-		vscode.ViewColumn.Beside
-	];
-/*
-  // See: https://www.eliostruyf.com/command-uri-vscode-webview-open-files-links/
-  const fileUri = {
-    scheme: 'file',
-    path: '/usr/local/lib/fricas/target/x86_64-linux-gnu/share/doc/html/api/index.html',
-    authority: ''
-  };
-  return (
-      <>
-        <a href={`command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}`}>Open link</a>
-      </>
-  )"
-}*/
-return `
+    const thisEditorParams = [vscode.Uri.parse(index)];
+    const besideEditorParams = [
+        linkUri,
+        vscode.ViewColumn.Beside
+    ];
+    /*
+      // See: https://www.eliostruyf.com/command-uri-vscode-webview-open-files-links/
+      const fileUri = {
+        scheme: 'file',
+        path: '/usr/local/lib/fricas/target/x86_64-linux-gnu/share/doc/html/api/index.html',
+        authority: ''
+      };
+      return (
+          <>
+            <a href={`command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}`}>Open link</a>
+          </>
+      )"
+    }*/
+    return `
   <!DOCTYPE html>
   <head>
     <title>riCAS Library Documentation</title>
@@ -193,13 +193,13 @@ return `
   <p>
 		<p>
 		    <a href="command:vscode.open?${encodeURIComponent(
-				JSON.stringify(thisEditorParams)
-			)}">open in this editor</a>
+        JSON.stringify(thisEditorParams)
+    )}">open in this editor</a>
 		</p>
 		<p>
 		<a href="command:vscode.open?${encodeURIComponent(
-				JSON.stringify(besideEditorParams)
-			)}">open beside</a>
+        JSON.stringify(besideEditorParams)
+    )}">open beside</a>
 		</p>
         <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}">FriCAS Documentation</a>
   </body>
@@ -276,13 +276,13 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
 
     const languageServerDepotPath = path.join(storagePath, 'lsdepot', 'v1')
     await fs.createDirectory(languageServerDepotPath)
-    const serverArgsRun: string[] = []
+    const serverArgsRun: string[] = ['--mcp']
     //['--startup-file=no', '--history-file=no', '--depwarn=no', 'main.jl', fricasEnvPath, '--debug=no', telemetry.getCrashReportingPipename(), oldDepotPath, storagePath, useSymserverDownloads, symserverUpstream, '--detached=no']
     const serverArgsDebug: string[] = ['-nosman', '-eval \')set break break\'']
     //['--startup-file=no', '--history-file=no', '--depwarn=no', 'main.jl', fricasEnvPath, '--debug=yes', telemetry.getCrashReportingPipename(), oldDepotPath, storagePath, useSymserverDownloads, symserverUpstream, '--detached=no']
     const spawnOptions = {
         cwd: process.env.HOME ? process.env.HOME : os.homedir(),
-	//path.join(g_context.extensionPath, 'scripts', 'languageserver'),
+        //path.join(g_context.extensionPath, 'scripts', 'languageserver'),
         env: {
             //FRICAS: ''
             FRICAS_DEPOT_PATH: languageServerDepotPath,
@@ -346,7 +346,7 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
         revealOutputChannelOn: RevealOutputChannelOn.Never,
         traceOutputChannel: g_traceOutputChannel,
         outputChannel: g_outputChannel,
-        initializationOptions: {fricaslangTestItemIdentification: true},
+        initializationOptions: { fricaslangTestItemIdentification: true },
     }
 
     // Create the language client and start the client.

@@ -35,7 +35,7 @@ const requestTypeGetCompletionItems = new rpc.RequestType<
     { line: string, mod: string }, // input type
     vscode.CompletionItem[], // return type
     void
-    >('repl/getcompletions')
+>('repl/getcompletions')
 
 function completionItemProvider(conn: MessageConnection): vscode.CompletionItemProvider {
     return {
@@ -50,17 +50,17 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
                     const line = document.getText(lineRange)
 
                     const mod: string = await getModuleForEditor(document, position)
-                    if(token.isCancellationRequested) { return }
+                    if (token.isCancellationRequested) { return }
 
                     const items = await conn.sendRequest(requestTypeGetCompletionItems, { line, mod })
-                    if(token.isCancellationRequested) { return }
+                    if (token.isCancellationRequested) { return }
 
                     return {
                         items: items,
                         isIncomplete: true
                     }
                 }
-                catch(err) {
+                catch (err) {
                     throw (err)
                 }
             })()
@@ -84,6 +84,21 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
                 completionPromise,
                 cancelPromise
             ])
+        },
+        resolveCompletionItem: async (item, token) => {
+            if (item.documentation) {
+                return item
+            }
+            const word = item.label as string
+            try {
+                const doc = await conn.sendRequest(new rpc.RequestType<{ word: string }, string, void>('repl/getDocFromWord'), { word })
+                if (doc) {
+                    item.documentation = new vscode.MarkdownString(doc)
+                }
+            } catch (err) {
+                // Ignore errors during documentation lookup
+            }
+            return item
         }
     }
 }
