@@ -150,7 +150,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     return ''
                 }
             )
-            if (lsResult) { return lsResult }
+            if (lsResult) { return this.cleanReplDocResult(lsResult) }
 
             // Try REPL message connection
             if (g_connection) {
@@ -179,6 +179,18 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     )
                     const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
                     if (conDoc) { return conDoc }
+
+                    // Pattern search fallback
+                    if (word.includes('*') || word.includes('?')) {
+                        const listResult = await executeInREPL(
+                            `jlListConstructors('${word})$SDOC`,
+                            { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                        )
+                        const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
+                        if (listDoc && listDoc !== '[]') {
+                            return `### Matching constructors:\n\n${listDoc}`
+                        }
+                    }
                 } catch (err) {
                     console.error('Direct REPL eval for doc failed', err)
                 }
@@ -187,23 +199,34 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         })()
 
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 5000)
+            setTimeout(() => resolve(''), 10000)
         })
 
         return Promise.race([fetchPromise, timeoutPromise])
     }
 
-    private cleanReplDocResult(text: string): string {
+    private cleanReplDocResult(text: string | any): string {
         if (!text) { return '' }
-        // Strip surrounding quotes if present
+        if (typeof text !== 'string') {
+            // Handle case where result might be an object (e.g. Hover result)
+            if (text.contents && text.contents.value) {
+                text = text.contents.value
+            } else if (text.value) {
+                text = text.value
+            } else {
+                text = JSON.stringify(text)
+            }
+        }
+        // Strip surrounding whitespace
         let cleaned = text.trim()
+        // Remove trailing "Type: String" that FriCAS appends
+        cleaned = cleaned.replace(/\s*Type:\s*String\s*$/, '').trim()
+        // Strip surrounding quotes if present
         if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
             cleaned = cleaned.slice(1, -1)
         }
-        // Remove trailing "Type: String" that FriCAS appends
-        cleaned = cleaned.replace(/\s*Type:\s*String\s*$/, '').trim()
-        // Unescape newlines
-        cleaned = cleaned.replace(/\\n/g, '\n')
+        // Unescape newlines (both actual and literal \n)
+        cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\"/g, '"')
         return cleaned
     }
 
@@ -222,7 +245,11 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     }
 
     async getDocumentation(editor: vscode.TextEditor): Promise<string> {
-        const params = getVersionedParamsAtPosition(editor.document, editor.selection.start)
+        const wordRange = editor.document.getWordRangeAtPosition(editor.selection.start)
+        const word = wordRange ? editor.document.getText(wordRange) : undefined
+        const posParams = getVersionedParamsAtPosition(editor.document, editor.selection.start)
+        const params = { ...posParams, word: word }
+
         const fetchPromise = (async () => {
             const lsResult = await withLanguageClient(
                 async languageClient => {
@@ -231,7 +258,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     return ''
                 }
             )
-            if (lsResult) { return lsResult }
+            if (lsResult) { return this.cleanReplDocResult(lsResult) }
 
             if (g_connection) {
                 try {
@@ -256,7 +283,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         })()
 
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 5000)
+            setTimeout(() => resolve(''), 10000)
         })
 
         return Promise.race([fetchPromise, timeoutPromise])
