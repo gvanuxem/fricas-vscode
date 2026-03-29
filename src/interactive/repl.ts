@@ -145,6 +145,7 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
 
         fricasarg = config.get('additionalArgs')
 
+        const connectFriCASCode = fricasConnector(pipename)
         let shellPath: string, shellArgs: string[]
 
         if (Boolean(config.get('persistentSession.enabled'))) {
@@ -163,7 +164,7 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
             ]
         } else {
             shellPath = fricasExecutable.file
-            shellArgs = [...fricasExecutable.args, ...fricasarg]
+            shellArgs = [...fricasExecutable.args, ...fricasarg, '-eval', connectFriCASCode]
         }
         // start a new transient terminal
         // that option isn't available on pre 1.65 versions of VS Code,
@@ -184,23 +185,19 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
 }
 
 function fricasConnector(pipename: string, start = false) {
-    /*const connect = `VSCodeServer.serve(raw"${pipename}"; is_dev = "DEBUG_MODE=true" in Base.ARGS, crashreporting_pipename = raw"${telemetry.getCrashReportingPipename()}");nothing # re-establishing connection with VSCode`
-    if (start) {
-        return `pushfirst!(LOAD_PATH, raw"${path.join(g_context.extensionPath, 'scripts', 'packages')}");using VSCodeServer;popfirst!(LOAD_PATH);` + connect
-    } else {
-        return connect
-    }*/
+    const connect = `)lisp (fricas-mcp:start-mcp-socket-client "${pipename.replace(/\\/g, '\\\\')}")`
+    return connect
 }
 
 async function connectREPL() {
     const pipename = generatePipeName(v4(), 'vsc-fricas-repl')
     const fricasIsConnectedPromise = startREPLMsgServer(pipename)
-    //const connectFriCASCode = fricasConnector(pipename, true)
+    const connectFriCASCode = fricasConnector(pipename, true)
 
     const config = vscode.workspace.getConfiguration('fricas')
 
     if (config.get<boolean>('persistentSession.alwaysCopy')) {
-        //vscode.env.clipboard.writeText(connectFriCASCode)
+        vscode.env.clipboard.writeText(connectFriCASCode)
         vscode.window.showInformationMessage('Start a FriCAS session and execute the code in your clipboard into it.')
         await _connectREPL(fricasIsConnectedPromise)
     } else {
@@ -214,7 +211,7 @@ async function connectREPL() {
             config.update('persistentSession.alwaysCopy', true)
         }
         if (click) {
-            //vscode.env.clipboard.writeText(connectFriCASCode)
+            vscode.env.clipboard.writeText(connectFriCASCode)
             await _connectREPL(fricasIsConnectedPromise)
         }
     }
@@ -783,6 +780,11 @@ async function evaluateBlockOrSelection(shouldMove: boolean = false) {
     if (editor === undefined) {
         return
     }
+
+    if (editor.document.languageId !== 'fricas' && !isMarkdownEditor(editor)) {
+        vscode.window.showWarningMessage('The current file is not set to FriCAS language. Execution might fail or be disabled.')
+    }
+
     if (vscode.workspace.getConfiguration('fricas').get<boolean>('execution.saveOnEval') === true) {
         await editor.document.save()
     }
@@ -849,6 +851,7 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
     if (resultType !== 'REPL') {
         r = results.addResult(editor, range, ' ⟳ ', '')
     }
+    console.log(`Sending RPC request repl/runcode for code: "${text.substring(0, 100)}${text.length > 100 ? "..." : ""}"`)
     try {
         const result: ReturnResult = await g_connection.sendRequest(
             requestTypeReplRunCode,
@@ -864,6 +867,7 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
                 softscope: true
             }
         )
+        console.log(`Received RPC response for repl/runcode: ${JSON.stringify(result).substring(0, 100)}...`)
         const isError = Boolean(result.stackframe)
 
         if (resultType !== 'REPL') {

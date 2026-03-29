@@ -93,7 +93,11 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
             try {
                 const doc = await conn.sendRequest(new rpc.RequestType<{ word: string }, string, void>('repl/getDocFromWord'), { word })
                 if (doc) {
-                    item.documentation = new vscode.MarkdownString(doc)
+                    const md = new vscode.MarkdownString(doc)
+                    const commandUri = vscode.Uri.parse(`command:language-fricas.search-word?${encodeURIComponent(JSON.stringify({ searchTerm: word }))}`)
+                    md.appendMarkdown(`\n\n---\n\n[Show in Documentation Pane](${commandUri.toString()})`)
+                    md.isTrusted = true
+                    item.documentation = md
                 }
             } catch (err) {
                 // Ignore errors during documentation lookup

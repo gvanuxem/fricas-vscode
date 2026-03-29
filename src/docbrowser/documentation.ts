@@ -76,8 +76,14 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     private backStack = Array<string>() // also keep current page
     private forwardStack = Array<string>()
 
+    private viewReadyResolve?: () => void
+    private viewReadyPromise: Promise<void>
+
     constructor(context) {
         this.context = context
+        this.viewReadyPromise = new Promise(resolve => {
+            this.viewReadyResolve = resolve
+        })
     }
 
     resolveWebviewView(view: vscode.WebviewView, context: vscode.WebviewViewResolveContext) {
@@ -87,7 +93,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             enableScripts: true,
             enableCommandUris: true
         }
-        view.webview.html = this.createWebviewHTML(this.getLandingPageMD())
+        this.setHTML(this.createWebviewHTML(this.getLandingPageMD()))
 
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
@@ -98,6 +104,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                 console.error('unknown message received')
             }
         })
+
+        this.viewReadyResolve?.()
     }
 
     async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | null> {
@@ -110,6 +118,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         if (!docAsMD || token.isCancellationRequested) { return null }
 
         const mdString = new vscode.MarkdownString(docAsMD)
+        const commandUri = vscode.Uri.parse(`command:language-fricas.search-word?${encodeURIComponent(JSON.stringify({ searchTerm: word }))}`)
+        mdString.appendMarkdown(`\n\n---\n\n[Show in Documentation Pane](${commandUri.toString()})`)
         mdString.isTrusted = true
         return new vscode.Hover(mdString, wordRange)
     }
@@ -124,19 +134,27 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     }
 
     async showDocumentationPane() {
-        if (this.view?.show === undefined) {
+        if (!this.view) {
             // this forces the webview to be resolved, but changes focus:
-            await vscode.commands.executeCommand('fricas-documentation.focus')
+            vscode.commands.executeCommand('fricas-documentation.focus')
+            await this.viewReadyPromise
         }
-        this.view.show(true)
+        if (this.view) {
+            this.view.show(true)
+        }
     }
 
     async showDocumentationFromWord(word: string) {
+        if (!word || word.trim().length === 0) {
+            this.showLandingPage()
+            return
+        }
+        word = word.trim()
         await this.showDocumentationPane()
-        this.setHTML(this.createWebviewHTML('### Searching for documentation...'))
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word))
 
         const docAsMD = await this.getDocumentationFromWord(word)
-        const html = this.createWebviewHTML(docAsMD || `No documentation found for \`${word}\`.`)
+        const html = this.createWebviewHTML(docAsMD || `No documentation found for \`${word}\`.`, word)
         this.setHTML(html)
     }
 
@@ -234,13 +252,16 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         const editor = vscode.window.activeTextEditor
         if (!editor) { return }
 
+        const wordRange = editor.document.getWordRangeAtPosition(editor.selection.start)
+        const word = wordRange ? editor.document.getText(wordRange) : ''
+
         await this.showDocumentationPane()
-        this.setHTML(this.createWebviewHTML('### Searching for documentation...'))
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word))
 
         const docAsMD = await this.getDocumentation(editor)
 
         this.forwardStack = [] // initialize forward page stack for manual search
-        const html = this.createWebviewHTML(docAsMD || 'No documentation found at current position.')
+        const html = this.createWebviewHTML(docAsMD || 'No documentation found at current position.', word)
         this.setHTML(html)
     }
 
@@ -289,7 +310,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         return Promise.race([fetchPromise, timeoutPromise])
     }
 
-    createWebviewHTML(docAsMD: string) {
+    createWebviewHTML(docAsMD: string, query: string = '') {
         const docAsHTML = md.render(docAsMD)
 
         const extensionPath = this.context.extensionPath
@@ -384,7 +405,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     <body>
         <div class="search">
             <button id="home-button" title="Go to Home"><i class="fas fa-home"></i></button>
-            <input id="search-input" type="text" placeholder="Search"></input>
+            <input id="search-input" type="text" placeholder="Search" value="${query.replace(/"/g, '&quot;')}"></input>
+            <button id="search-button" title="Search"><i class="fas fa-search"></i></button>
         </div>
         <div class="docs-main" style="padding: 50px 1em 1em 1em">
             <article class="content">
@@ -392,25 +414,36 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             </article>
         </div>
         <script>
-            const vscode = acquireVsCodeApi()
+            const vscodeApi = acquireVsCodeApi()
 
             function search(val) {
                 if (val) {
-                    vscode.postMessage({
+                    vscodeApi.postMessage({
                         type: 'search',
                         query: val
                     })
                 }
             }
             function onKeyDown(ev) {
-                if (ev && ev.keyCode === 13) {
+                if (ev && ev.key === 'Enter') {
                     const val = document.getElementById('search-input').value
                     search(val)
                 }
             }
-            document.getElementById('search-input').addEventListener('keydown', onKeyDown)
+            const searchInput = document.getElementById('search-input')
+            searchInput.addEventListener('keydown', onKeyDown)
+            document.getElementById('search-button').addEventListener('click', () => {
+                const val = searchInput.value
+                search(val)
+            })
+            // Restore focus and selection at the end
+            searchInput.focus()
+            if (searchInput.value) {
+                searchInput.setSelectionRange(0, searchInput.value.length)
+            }
+
             document.getElementById('home-button').addEventListener('click', () => {
-                vscode.postMessage({ type: 'home' })
+                vscodeApi.postMessage({ type: 'home' })
             })
         </script>
     </body>
