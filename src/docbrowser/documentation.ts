@@ -189,14 +189,14 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             if (g_connection || allowStartREPL) {
                 try {
                     const opResult = await executeInREPL(
-                        `jlOperationDocumentation("${word}")$SDOC`,
+                        `operationDocumentation("${word}")$SDOC`,
                         { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                     )
                     const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
                     if (opDoc) { return opDoc }
 
                     const conResult = await executeInREPL(
-                        `jlConstructorDocumentation("${word}")$SDOC`,
+                        `constructorDocumentation("${word}")$SDOC`,
                         { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                     )
                     const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
@@ -205,7 +205,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     // Pattern search fallback
                     if (word.includes('*') || word.includes('?')) {
                         const listResult = await executeInREPL(
-                            `jlListConstructors("${word}")$SDOC`,
+                            `listConstructors("${word}")$SDOC`,
                             { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                         )
                         const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')

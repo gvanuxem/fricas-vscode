@@ -4,6 +4,8 @@
 
 This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google Antigravity](https://antigravity.google/)
 
+⚠️ WARNING: This extension is under active development! ⚠️
+
 ## Getting started
 
 ### Building the extension
@@ -60,8 +62,8 @@ The extension currently provides:
 * ``work in progress`` FriCAS specific commands
 * ``work in progress`` integrated FriCAS REPL
 * ``work in progress`` code completion
-* ``planned`` documentation navigation
-* ``planned`` hover help
+* ``work in progress`` documentation navigation/search
+* ``work in progress`` hover help
 * ``work in progress`` code navigation
 * ``planned`` debugger
 * ``planned`` integrated plots
