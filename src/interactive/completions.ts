@@ -5,7 +5,7 @@ import * as rpc from 'vscode-jsonrpc'
 import { Disposable, MessageConnection } from 'vscode-jsonrpc'
 import { wrapCrashReporting } from '../utils'
 import { getModuleForEditor } from './modules'
-import { onExit, onInit } from './repl'
+import { onExit, onInit, requestTypeGetDocFromWord } from './repl'
 
 const selector = [
     { language: 'fricas', scheme: 'untitled' },
@@ -91,9 +91,12 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
             }
             const word = item.label as string
             try {
-                const doc = await conn.sendRequest(new rpc.RequestType<{ word: string }, string, void>('repl/getDocFromWord'), { word })
-                if (doc) {
-                    const md = new vscode.MarkdownString(doc)
+                let doc = await conn.sendRequest(requestTypeGetDocFromWord, { word })
+                if (!doc || doc.trim().length === 0) {
+                    doc = await conn.sendRequest(requestTypeGetDocFromWord, { word, type: 'constructor' })
+                }
+                if (doc && doc.trim().length > 0) {
+                    const md = new vscode.MarkdownString(doc as string)
                     const commandUri = vscode.Uri.parse(`command:language-fricas.search-word?${encodeURIComponent(JSON.stringify({ searchTerm: word }))}`)
                     md.appendMarkdown(`\n\n---\n\n[Show in Documentation Pane](${commandUri.toString()})`)
                     md.isTrusted = true

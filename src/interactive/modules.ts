@@ -1,10 +1,10 @@
 import * as vscode from 'vscode'
 import * as rpc from 'vscode-jsonrpc'
-import { ResponseError } from 'vscode-jsonrpc'
+//import { ResponseError } from 'vscode-jsonrpc'
 import * as vslc from 'vscode-languageclient/node'
 import { onSetLanguageClient } from '../extension'
 import { registerCommand, wrapCrashReporting } from '../utils'
-import { VersionedTextDocumentPositionParams } from './misc'
+//import { VersionedTextDocumentPositionParams } from './misc'
 import { onExit, onInit } from './repl'
 
 let statusBarItem: vscode.StatusBarItem = null
@@ -73,37 +73,37 @@ export async function getModuleForEditor(document: vscode.TextDocument, position
 
     if (!languageClient) { return 'Main' }
 
-    const params: VersionedTextDocumentPositionParams = {
-        textDocument: vslc.TextDocumentIdentifier.create(document.uri.toString()),
-        version: document.version,
-        position: position
-    }
+    //const params: VersionedTextDocumentPositionParams = {
+    //    textDocument: vslc.TextDocumentIdentifier.create(document.uri.toString()),
+    //    version: document.version,
+    //    position: position
+    //}
 
-    for (let i = 0; i < 3; i++) {
-        if (token === undefined || !token.isCancellationRequested) {
-            try {
-                return await languageClient.sendRequest<string>('fricas/getModuleAt', params)
-            }
-            catch (err) {
-                if (err instanceof ResponseError && err.code===rpc.ErrorCodes.ConnectionInactive) {
-                    return 'Main'
-                }
-                else if (err instanceof ResponseError && err.code===-33101) {
-                    // This is a version out of sync situation
-                    return 'Main'
-                }
-                else {
-                    throw err
-                }
-            }
-        }
-        else {
+    //for (let i = 0; i < 3; i++) {
+        //if (token === undefined || !token.isCancellationRequested) {
+        //    try {
+        //        return await languageClient.sendRequest<string>('repl/getModuleAt', params)
+        //    }
+        //    catch (err) {
+        //        if (err instanceof ResponseError && err.code===rpc.ErrorCodes.ConnectionInactive) {
+        //            return 'Main'
+        //        }
+        //        else if (err instanceof ResponseError && err.code===-33101) {
+        //            // This is a version out of sync situation
+        //            return 'Main'
+        //        }
+        //        else {
+        //            throw err
+        //        }
+        //    }
+        //}
+        //else {
             // We were canceled, so we give up
-            return 'Main'
-        }
-    }
+      //      return 'Main'
+        //}
+    //}
 
-    // We tried three times, now give up
+    // We tried three times, now give up (gv: no)
     return 'Main'
 }
 

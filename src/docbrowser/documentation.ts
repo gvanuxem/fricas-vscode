@@ -163,7 +163,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             // Try language client first (LSP)
             const lsResult = await withLanguageClient(
                 async languageClient => {
-                    return await languageClient.sendRequest<string>('fricas/getDocFromWord', { word: word })
+                    return await languageClient.sendRequest<string>('repl/getDocFromWord', { word: word })
                 }, err => {
                     return ''
                 }
@@ -173,8 +173,12 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             // Try REPL message connection
             if (g_connection) {
                 try {
-                    const replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
-                    if (replResult) { return replResult }
+                    let replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
+                    if (replResult && replResult.trim().length > 0) { return replResult }
+
+                    // If not found, try as constructor
+                    replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word, type: 'constructor' })
+                    if (replResult && replResult.trim().length > 0) { return replResult }
                 } catch (err) {
                     console.error('REPL message request failed, trying direct eval', err)
                 }
@@ -185,14 +189,14 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             if (g_connection || allowStartREPL) {
                 try {
                     const opResult = await executeInREPL(
-                        `jlGetOperationDocumentation('${word})$SDOC`,
+                        `jlOperationDocumentation("${word}")$SDOC`,
                         { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                     )
                     const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
                     if (opDoc) { return opDoc }
 
                     const conResult = await executeInREPL(
-                        `jlGetConstructorDocumentation('${word})$SDOC`,
+                        `jlConstructorDocumentation("${word}")$SDOC`,
                         { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                     )
                     const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
@@ -201,7 +205,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     // Pattern search fallback
                     if (word.includes('*') || word.includes('?')) {
                         const listResult = await executeInREPL(
-                            `jlListConstructors('${word})$SDOC`,
+                            `jlListConstructors("${word}")$SDOC`,
                             { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
                         )
                         const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
@@ -237,8 +241,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         }
         // Strip surrounding whitespace
         let cleaned = text.trim()
-        // Remove trailing "Type: String" that FriCAS appends
-        cleaned = cleaned.replace(/\s*Type:\s*String\s*$/, '').trim()
+        // Remove trailing FriCAS types
+        cleaned = cleaned.replace(/\s*Type:\s*(?:String|Void)\s*$/, '').trim()
         // Strip surrounding quotes if present
         if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
             cleaned = cleaned.slice(1, -1)
@@ -274,7 +278,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         const fetchPromise = (async () => {
             const lsResult = await withLanguageClient(
                 async languageClient => {
-                    return await languageClient.sendRequest<string>('fricas/getDocAt', params)
+                    return await languageClient.sendRequest<string>('repl/getDocAt', params)
                 }, err => {
                     return ''
                 }
@@ -283,8 +287,12 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
 
             if (g_connection) {
                 try {
-                    const replResult = await g_connection.sendRequest(requestTypeGetDocAt, params)
-                    if (replResult) { return replResult }
+                    let replResult = await g_connection.sendRequest(requestTypeGetDocAt, params)
+                    if (replResult && replResult.trim().length > 0) { return replResult }
+
+                    // If not found, try as constructor
+                    replResult = await g_connection.sendRequest(requestTypeGetDocAt, { ...params, type: 'constructor' })
+                    if (replResult && replResult.trim().length > 0) { return replResult }
                 } catch (err) {
                     console.error('REPL message request failed, trying direct eval', err)
                 }

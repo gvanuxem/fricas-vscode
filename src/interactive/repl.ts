@@ -185,7 +185,7 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
 }
 
 function fricasConnector(pipename: string, start = false) {
-    const connect = `)lisp (fricas-mcp:start-mcp-socket-client "${pipename.replace(/\\/g, '\\\\')}")`
+    const connect = `)lisp (fricas-mcp:start-socket-mcp-client "${pipename.replace(/\\/g, '\\\\')}")`
     return connect
 }
 
@@ -281,8 +281,8 @@ const requestTypeReplRunCode = new rpc.RequestType<{
     softscope: boolean
 }, ReturnResult, void>('repl/runcode')
 
-export const requestTypeGetDocFromWord = new rpc.RequestType<{ word: string }, string, void>('repl/getDocFromWord')
-export const requestTypeGetDocAt = new rpc.RequestType<VersionedTextDocumentPositionParams, string, void>('repl/getDocAt')
+export const requestTypeGetDocFromWord = new rpc.RequestType<{ word: string, type?: string }, string, void>('repl/getDocFromWord')
+export const requestTypeGetDocAt = new rpc.RequestType<VersionedTextDocumentPositionParams & { word?: string, type?: string }, string, void>('repl/getDocAt')
 
 /*
 interface DebugLaunchParams {
