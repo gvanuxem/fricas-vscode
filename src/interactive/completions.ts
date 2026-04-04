@@ -91,9 +91,9 @@ function completionItemProvider(conn: MessageConnection): vscode.CompletionItemP
             }
             const word = item.label as string
             try {
-                let doc = await conn.sendRequest(requestTypeGetDocFromWord, { word })
+                let doc = await conn.sendRequest(requestTypeGetDocFromWord, { word, type: 'constructor' })
                 if (!doc || doc.trim().length === 0) {
-                    doc = await conn.sendRequest(requestTypeGetDocFromWord, { word, type: 'constructor' })
+                    doc = await conn.sendRequest(requestTypeGetDocFromWord, { word })
                 }
                 if (doc && doc.trim().length > 0) {
                     const md = new vscode.MarkdownString(doc as string)
