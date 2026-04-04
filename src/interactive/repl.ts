@@ -284,6 +284,8 @@ const requestTypeReplRunCode = new rpc.RequestType<{
 export const requestTypeGetDocFromWord = new rpc.RequestType<{ word: string, type?: string }, string, void>('repl/getDocFromWord')
 export const requestTypeGetDocAt = new rpc.RequestType<VersionedTextDocumentPositionParams & { word?: string, type?: string }, string, void>('repl/getDocAt')
 
+export const requestTypeCallTool = new rpc.RequestType<{ name: string, arguments: any }, { content: { type: string, text: string }[] }, void>('tools/call')
+
 /*
 interface DebugLaunchParams {
     code: string,
@@ -838,10 +840,8 @@ async function evaluateBlockOrSelection(shouldMove: boolean = false) {
 
 // Returns false if the connection wasn't available
 async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: string, module: string) {
-
     const section = vscode.workspace.getConfiguration('fricas')
     const resultType: string = section.get('execution.resultType')
-    const codeInREPL: boolean = section.get('execution.codeInREPL')
 
     if (!g_connection) {
         return false
@@ -851,24 +851,18 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
     if (resultType !== 'REPL') {
         r = results.addResult(editor, range, ' ⟳ ', '')
     }
-    console.log(`Sending RPC request repl/runcode for code: "${text.substring(0, 100)}${text.length > 100 ? "..." : ""}"`)
+    console.log(`Sending RPC request tools/call for evaluate: "${text.substring(0, 100)}${text.length > 100 ? "..." : ""}"`)
     try {
-        const result: ReturnResult = await g_connection.sendRequest(
-            requestTypeReplRunCode,
+        const result = await g_connection.sendRequest(
+            requestTypeCallTool,
             {
-                filename: editor.document.fileName,
-                line: range.start.line,
-                column: range.start.character,
-                code: text,
-                mod: module,
-                showCodeInREPL: codeInREPL,
-                showResultInREPL: resultType === 'REPL' || resultType === 'both',
-                showErrorInREPL: resultType.indexOf('error') > -1,
-                softscope: true
+                name: 'evaluate',
+                arguments: { expression: text }
             }
         )
-        console.log(`Received RPC response for repl/runcode: ${JSON.stringify(result).substring(0, 100)}...`)
-        const isError = Boolean(result.stackframe)
+        console.log(`Received RPC response for evaluate tool`)
+        const output = result.content[0].text
+        const isError = output.startsWith('Evaluation Error:') || output.startsWith('Julia Evaluation Error:')
 
         if (resultType !== 'REPL') {
             if (r.destroyed && r.text === editor.document.getText(r.range)) {
@@ -876,9 +870,9 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
             }
             if (isError) {
                 results.clearStackTrace()
-                results.setStackTrace(r, result.all, result.stackframe)
+                // results.setStackTrace(r, output, result.stackframe) // stackframe is null for tool
             }
-            r.setContent(results.resultContent(' ' + result.inline + ' ', result.all, isError))
+            r.setContent(results.resultContent(' ' + output + ' ', output, isError))
         }
 
         return !isError
@@ -931,22 +925,21 @@ function executeSelectionCopyPaste() {
     executeCodeCopyPaste(text, selection.isEmpty)
 }
 
-export async function executeInREPL(code: string, { filename = 'code', line = 0, column = 0, mod = 'Main', showCodeInREPL = true, showResultInREPL = true, showErrorInREPL = false, softscope = true }): Promise<ReturnResult> {
+export async function executeInREPL(code: string): Promise<ReturnResult> {
     await startREPL(true)
-    return await g_connection.sendRequest(
-        requestTypeReplRunCode,
+    const result = await g_connection.sendRequest(
+        requestTypeCallTool,
         {
-            filename,
-            line,
-            column,
-            code,
-            mod,
-            showCodeInREPL,
-            showResultInREPL,
-            showErrorInREPL,
-            softscope
+            name: 'evaluate',
+            arguments: { expression: code }
         }
     )
+    const output = result.content[0].text
+    return {
+        inline: output,
+        all: output,
+        stackframe: null
+    }
 }
 
 const interrupts = []

@@ -3,7 +3,7 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import { withLanguageClient } from '../extension'
 import { constructCommandString, getVersionedParamsAtPosition, registerCommand } from '../utils'
-import { g_connection, requestTypeGetDocAt, requestTypeGetDocFromWord, executeInREPL } from '../interactive/repl'
+import { g_connection, executeInREPL, requestTypeCallTool } from '../interactive/repl'
 
 function openArgs(href: string) {
     const matches = href.match(/^((\w+\:\/\/)?.+?)(?:[\:#](\d+))?$/)
@@ -170,17 +170,25 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             )
             if (lsResult) { return this.cleanReplDocResult(lsResult) }
 
-            // Try REPL message connection
+            // Try REPL message connection tool: get-documentation
             if (g_connection) {
                 try {
-                    let replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word })
+                    let result = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'get-documentation',
+                        arguments: { name: word, type: 'operation' }
+                    })
+                    let replResult = result.content[0].text
                     if (replResult && replResult.trim().length > 0) { return replResult }
 
                     // If not found, try as constructor
-                    replResult = await g_connection.sendRequest(requestTypeGetDocFromWord, { word: word, type: 'constructor' })
+                    result = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'get-documentation',
+                        arguments: { name: word, type: 'constructor' }
+                    })
+                    replResult = result.content[0].text
                     if (replResult && replResult.trim().length > 0) { return replResult }
                 } catch (err) {
-                    console.error('REPL message request failed, trying direct eval', err)
+                    console.error('REPL message Tool call failed, trying direct eval', err)
                 }
             }
 
@@ -189,15 +197,13 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             if (g_connection || allowStartREPL) {
                 try {
                     const opResult = await executeInREPL(
-                        `operationDocumentation("${word}")$SDOC`,
-                        { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                        `operationDocumentation("${word}")$SDOC`
                     )
                     const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
                     if (opDoc) { return opDoc }
 
                     const conResult = await executeInREPL(
-                        `constructorDocumentation("${word}")$SDOC`,
-                        { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                        `constructorDocumentation("${word}")$SDOC`
                     )
                     const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
                     if (conDoc) { return conDoc }
@@ -205,8 +211,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                     // Pattern search fallback
                     if (word.includes('*') || word.includes('?')) {
                         const listResult = await executeInREPL(
-                            `listConstructors("${word}")$SDOC`,
-                            { showCodeInREPL: false, showResultInREPL: false, showErrorInREPL: false }
+                            `listConstructors("${word}")$SDOC`
                         )
                         const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
                         if (listDoc && listDoc !== '[]') {
@@ -287,14 +292,22 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
 
             if (g_connection) {
                 try {
-                    let replResult = await g_connection.sendRequest(requestTypeGetDocAt, params)
+                    let result = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'get-documentation',
+                        arguments: { name: word, type: 'operation' }
+                    })
+                    let replResult = result.content[0].text
                     if (replResult && replResult.trim().length > 0) { return replResult }
 
                     // If not found, try as constructor
-                    replResult = await g_connection.sendRequest(requestTypeGetDocAt, { ...params, type: 'constructor' })
+                    result = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'get-documentation',
+                        arguments: { name: word, type: 'constructor' }
+                    })
+                    replResult = result.content[0].text
                     if (replResult && replResult.trim().length > 0) { return replResult }
                 } catch (err) {
-                    console.error('REPL message request failed, trying direct eval', err)
+                    console.error('REPL message Tool call failed, trying direct eval', err)
                 }
             }
 
