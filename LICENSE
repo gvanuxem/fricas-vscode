@@ -1,6 +1,12 @@
 The MIT License (MIT)
 
-Copyright (c) 2023-2026 GrÃ©gory Vanuxem
+Copyright (c) 2023-2026 Grégory Vanuxem
+based on the work of
+Copyright (c) 2012-2022 David Anthoff, Zac Nugent, Sebastian Pfitzner and
+other contributors:
+
+https://github.com/JuliaLang/Julia.tmbundle/contributors
+https://github.com/julia-vscode/julia-vscode/contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
