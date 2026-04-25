@@ -583,7 +583,19 @@ async function executeFile(uri?: vscode.Uri | string) {
         isJmd = isMarkdownEditor(editor)
     }
 
-    // strip out non-code-block condent for JMD files:
+    // For .input files, delegate to FriCAS's )read command.
+    if (path.endsWith('.input') && !isJmd) {
+        await g_connection.sendRequest(
+            requestTypeCallTool,
+            {
+                name: 'evaluate',
+                arguments: { expression: `)read ${path}` }
+            }
+        )
+        return
+    }
+
+    // strip out non-code-block content for JMD files:
     if (isJmd) {
         code = stripMarkdown(code)
     }
