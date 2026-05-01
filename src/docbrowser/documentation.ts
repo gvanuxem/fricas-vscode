@@ -113,6 +113,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         if (!wordRange) { return null }
         const word = document.getText(wordRange)
 
+        if (this.isSuppressedNumber(word)) { return null }
+
         // Don't auto-start a REPL from hover — only use existing connections
         const docAsMD = await this.getDocumentationFromWord(word, false)
         if (!docAsMD || token.isCancellationRequested) { return null }
@@ -159,6 +161,9 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     }
 
     async getDocumentationFromWord(word: string, allowStartREPL: boolean = true): Promise<string> {
+        if (this.isSuppressedNumber(word)) {
+            return ''
+        }
         const fetchPromise = (async () => {
             // Try language client first (LSP)
             const lsResult = await withLanguageClient(
@@ -521,5 +526,27 @@ Alternatively, place your cursor on a word in the editor and use the **FriCAS: S
 * [jlFriCAS Documentation pages](https://gvanuxem.github.io/jlfricas.documentation/)
 * [FriCAS API Documentation](https://fricas.github.io/api/)
 `
+    }
+
+    private isSuppressedNumber(word: string): boolean {
+        if (!word) { return false }
+        // FriCAS numeric literals:
+        // - Decimal integers: 42
+        // - Floats: 3.14, 0.0, 1.2e3, .5
+        // - Radix: 16rFF
+        // Regex explanation:
+        // ((\d+r[0-9a-zA-Z]+)  -> Radix numbers
+        // |(\d+(\.\d*)?([eE][+-]?\d+)?) -> Numbers starting with digits (covers integers and floats)
+        // |(\.\d+([eE][+-]?\d+)?)) -> Floats starting with a dot
+        const fricasNumberRegex = /^((\d+r[0-9a-zA-Z]+)|(\d+(\.\d*)?([eE][+-]?\d+)?)|(\.\d+([eE][+-]?\d+)?))$/;
+
+        if (!fricasNumberRegex.test(word)) {
+            return false;
+        }
+        // Allow '0' and '1' exactly (as decimal integers)
+        if (word === '0' || word === '1') {
+            return false;
+        }
+        return true;
     }
 }
