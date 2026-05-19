@@ -1,18 +1,14 @@
 import * as fs from 'async-file'
-import { Subject } from 'await-notify'
 import { assert } from 'console'
-import * as net from 'net'
 import { homedir } from 'os'
 import * as path from 'path'
-import { exec } from 'promisify-child-process'
-import { v4 } from 'uuid'
 import * as vscode from 'vscode'
 import * as rpc from 'vscode-jsonrpc/node'
 import * as vslc from 'vscode-languageclient/node'
 import { onSetLanguageClient } from '../extension'
 import { switchEnvToPath } from '../spadpkgenv'
 import { FriCASExecutablesFeature } from '../fricasexepath'
-import { generatePipeName, getVersionedParamsAtPosition, registerCommand, setContext, wrapCrashReporting } from '../utils'
+import { getVersionedParamsAtPosition, registerCommand, setContext, wrapCrashReporting } from '../utils'
 import * as completions from './completions'
 import { VersionedTextDocumentPositionParams } from './misc'
 import * as modules from './modules'
@@ -25,86 +21,207 @@ let g_languageClient: vslc.LanguageClient = null
 //let g_compiledProvider = null
 
 let g_terminal: vscode.Terminal = null
+let g_pty: FriCASPseudoTerminal = null
 
 export let g_connection: rpc.MessageConnection = undefined
 
 let g_fricasExecutablesFeature: FriCASExecutablesFeature
 
+/**
+ * Wraps a VS Code LanguageClient to expose a MessageConnection-compatible
+ * interface.  This lets all existing consumers (completions, workspace,
+ * documentation, …) keep using `g_connection.sendRequest(type, params)`
+ * without changes — under the hood the calls go to the single Language
+ * Server process that was started with `--mcp`.
+ */
+class LanguageClientConnection {
+    constructor(private client: vslc.LanguageClient) {}
+
+    sendRequest(type: any, ...args: any[]) {
+        const method = typeof type === 'string' ? type : type.method
+        return this.client.sendRequest(method, ...args)
+    }
+
+    sendNotification(type: any, ...args: any[]) {
+        const method = typeof type === 'string' ? type : type.method
+        return this.client.sendNotification(method, ...args)
+    }
+
+    onNotification(type: any, handler: any): vscode.Disposable {
+        const method = typeof type === 'string' ? type : type.method
+        return this.client.onNotification(method, handler)
+    }
+
+    onRequest(type: any, handler: any): vscode.Disposable {
+        const method = typeof type === 'string' ? type : type.method
+        return this.client.onRequest(method, handler)
+    }
+
+    listen() { /* no-op — LanguageClient already listening */ }
+    end() { /* no-op — lifecycle managed by extension.ts */ }
+    dispose() { /* no-op */ }
+}
+
+/**
+ * Interactive pseudo-terminal for the FriCAS REPL.
+ *
+ * Instead of spawning a second FriCAS process, this PTY displays
+ * evaluation results received from the Language Server and accepts
+ * user input which is forwarded as `tools/call evaluate` requests.
+ */
+class FriCASPseudoTerminal implements vscode.Pseudoterminal {
+    private writeEmitter = new vscode.EventEmitter<string>()
+    private closeEmitter = new vscode.EventEmitter<void | number>()
+    onDidWrite = this.writeEmitter.event
+    onDidClose = this.closeEmitter.event
+
+    private inputBuffer = ''
+    private history: string[] = []
+    private historyIndex = -1
+    private evaluating = false
+
+    constructor(private version: string) {}
+
+    open() {
+        this.writeEmitter.fire(`\x1b[1mFriCAS REPL (v${this.version})\x1b[0m\r\n`)
+        this.showPrompt()
+    }
+
+    close() { /* terminal closed by user */ }
+
+    private showPrompt() {
+        this.writeEmitter.fire('\r\n\x1b[32m-> \x1b[0m')
+    }
+
+    handleInput(data: string) {
+        if (this.evaluating) {
+            if (data === '\x03') { softInterrupt() }
+            return
+        }
+        for (let i = 0; i < data.length; i++) {
+            const ch = data[i]
+            if (ch === '\r') {
+                this.writeEmitter.fire('\r\n')
+                if (this.inputBuffer.trim()) {
+                    this.history.push(this.inputBuffer)
+                    this.historyIndex = this.history.length
+                    this.doEvaluate(this.inputBuffer)
+                } else {
+                    this.showPrompt()
+                }
+                this.inputBuffer = ''
+            } else if (ch === '\x7f') { // Backspace
+                if (this.inputBuffer.length > 0) {
+                    this.inputBuffer = this.inputBuffer.slice(0, -1)
+                    this.writeEmitter.fire('\b \b')
+                }
+            } else if (ch === '\x03') { // Ctrl+C
+                this.writeEmitter.fire('^C')
+                this.inputBuffer = ''
+                this.showPrompt()
+            } else if (ch === '\x1b' && data.length > i + 2) {
+                const seq = data.substring(i, i + 3)
+                if (seq === '\x1b[A') { // Up arrow
+                    i += 2
+                    if (this.historyIndex > 0) {
+                        this.historyIndex--
+                        this.replaceInput(this.history[this.historyIndex])
+                    }
+                } else if (seq === '\x1b[B') { // Down arrow
+                    i += 2
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.historyIndex++
+                        this.replaceInput(this.history[this.historyIndex])
+                    } else {
+                        this.historyIndex = this.history.length
+                        this.replaceInput('')
+                    }
+                } else {
+                    i += 2 // skip unknown escape sequences
+                }
+            } else {
+                this.inputBuffer += ch
+                this.writeEmitter.fire(ch)
+            }
+        }
+    }
+
+    private replaceInput(text: string) {
+        const clearLen = this.inputBuffer.length
+        this.writeEmitter.fire('\r\x1b[32m-> \x1b[0m' + ' '.repeat(clearLen) + '\r\x1b[32m-> \x1b[0m')
+        this.inputBuffer = text
+        this.writeEmitter.fire(text)
+    }
+
+    private async doEvaluate(code: string) {
+        if (!g_connection) {
+            this.writeOutput('Error: Not connected to FriCAS.\n')
+            return
+        }
+        this.evaluating = true
+        try {
+            const result = await g_connection.sendRequest(
+                requestTypeCallTool,
+                { name: 'evaluate', arguments: { expression: code } }
+            )
+            const output = result.content[0].text
+            if (output && output.trim()) {
+                this.writeOutput(output)
+            }
+        } catch (err) {
+            this.writeOutput(`Error: ${err.message || err}`)
+        }
+        this.evaluating = false
+        this.showPrompt()
+    }
+
+    /** Write text to the terminal (converts \\n to \\r\\n). */
+    writeOutput(text: string) {
+        this.writeEmitter.fire(text.replace(/\r?\n/g, '\r\n'))
+    }
+
+    /** Write error text in red to the terminal. */
+    writeError(text: string) {
+        this.writeEmitter.fire('\x1b[31m' + text.replace(/\r?\n/g, '\r\n') + '\x1b[0m')
+    }
+
+    /** Echoes an editor-triggered evaluation to the terminal. */
+    echoEvaluation(code: string, output: string, isError = false) {
+        this.writeEmitter.fire('\r\x1b[2K')
+        this.writeEmitter.fire(`\x1b[90m-> ${code.replace(/\r?\n/g, '\r\n')}\x1b[0m\r\n`)
+        if (output && output.trim()) {
+            const formattedOutput = output.replace(/\r?\n/g, '\r\n')
+            if (isError) {
+                this.writeEmitter.fire('\x1b[31m' + formattedOutput + '\x1b[0m\r\n')
+            } else {
+                this.writeEmitter.fire(formattedOutput + '\r\n')
+            }
+        }
+        this.writeEmitter.fire('\x1b[32m-> \x1b[0m' + this.inputBuffer)
+    }
+}
+
+
 function startREPLCommand() {
     startREPL(false, true)
 }
-async function confirmKill() {
-    if (vscode.workspace.getConfiguration('fricas').get<boolean>('persistentSession.warnOnKill') === false) {
-        return true
-    }
-    else {
-        const agree = 'Yes'
-        const agreeAlways = 'Yes, always'
-        const disagree = 'No'
-        const choice = await vscode.window.showInformationMessage('This is a persistent tmux session. Do you want to close it?', agree, agreeAlways, disagree)
-        if (choice === disagree) {
-            return false
-        }
-        if (choice === agreeAlways) {
-            vscode.workspace.getConfiguration('fricas').update('persistentSession.warnOnKill', false, true)
-        }
-        if (choice === agree || choice === agreeAlways) {
-            return true
-        }
-        return false
-    }
-}
 async function stopREPL(onDeactivate = false) {
-    const config = vscode.workspace.getConfiguration('fricas')
-    if (Boolean(config.get('persistentSession.enabled')) && !onDeactivate) {
-        try {
-            const sessionName = parseSessionArgs(config.get('persistentSession.tmuxSessionName'))
-            const killSession = await confirmKill()
-            if (killSession) {
-                await exec(`tmux kill-session -t ${sessionName}`)
-            }
-        } catch (err) {
-            vscode.window.showErrorMessage('Failed to close tmux session: ' + err.stderr)
-        }
-    }
     if (isConnected()) {
-        g_connection.end()
+        g_onExit.fire(false)
         g_connection = undefined
     }
     if (g_terminal) {
         g_terminal.dispose()
         g_terminal = null
     }
+    g_pty = null
 }
 async function restartREPL() {
     await stopREPL()
     await startREPL(false, true)
 }
-
-function getEditor(): string {
-    return vscode.workspace.getConfiguration('fricas').get('editor')
-}
 function isConnected() {
     return Boolean(g_connection)
-}
-
-function sanitize(str: string) {
-    return str.toLowerCase().replace(/[^\p{L}\p{N}_-]+/ug, '-')
-}
-function parseSessionArgs(name: string) {
-    if (name.match(/\$\[workspace\]/)) {
-        const ed = vscode.window.activeTextEditor
-        if (ed) {
-            const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri)
-            if (folder) {
-                return name.replace('$[workspace]', sanitize(folder.name))
-            } else {
-                return name.replace('$[workspace]', '')
-            }
-        }
-    }
-
-    return name
 }
 
 async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
@@ -115,127 +232,38 @@ async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
         return
     }
 
-    const config = vscode.workspace.getConfiguration('fricas')
-    //const terminalConfig = vscode.workspace.getConfiguration('terminal')
+    // The LanguageClient IS the FriCAS process (started with --mcp).
+    // We just wrap it to look like a MessageConnection.
+    if (!g_languageClient) {
+        vscode.window.showErrorMessage(
+            'FriCAS Language Server is not started yet. Please wait for it to initialize.'
+        )
+        return
+    }
+
+    g_connection = new LanguageClientConnection(g_languageClient) as any
+
     if (g_terminal === null) {
-        const pipename = generatePipeName(v4(), 'vsc-fricas-repl')
-        //const startupPath = ''
-
-        /*
-        function getArgs() {
-            const jlarg2 = [startupPath, pipename, telemetry.getCrashReportingPipename()]
-            //jlarg2.push(`USE_REVISE=${config.get('useRevise')}`)
-            jlarg2.push(`USE_PLOTPANE=${config.get('usePlotPane')}`)
-            jlarg2.push(`USE_PROGRESS=${config.get('useProgressFrontend')}`)
-            jlarg2.push(`ENABLE_SHELL_INTEGRATION=${terminalConfig.get('integrated.shellIntegration.enabled')}`)
-            //jlarg2.push(`DEBUG_MODE=${Boolean(process.env.DEBUG_MODE)}`)
-
-            return jlarg2
-        }*/
-
-        const env: any = {
-            FRICAS_EDITOR: getEditor()
-        }
-
-        const fricasIsConnectedPromise = startREPLMsgServer(pipename)
-
         const fricasExecutable = await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()
+        const version = fricasExecutable ? String(fricasExecutable.getVersion()) : 'unknown'
 
-        let fricasarg: string[]
-
-        fricasarg = config.get('additionalArgs')
-
-        const connectFriCASCode = fricasConnector(pipename)
-        let shellPath: string, shellArgs: string[]
-
-        if (Boolean(config.get('persistentSession.enabled'))) {
-            shellPath = config.get('persistentSession.shell')
-            const connectFriCASCode = fricasConnector(pipename)
-            const sessionName = parseSessionArgs(config.get('persistentSession.tmuxSessionName'))
-            const fricasAndArgs = `FRICAS_EDITOR=${getEditor()} ${fricasExecutable.file} ${[
-                ...fricasExecutable.args,
-                ...fricasarg
-            ].join(' ')}`.replace(/"/g, '\\"')
-            shellArgs = [
-                <string>config.get('persistentSession.shellExecutionArgument'),
-                // create a new tmux session, set remain-on-exit to true, and attach; if the session already exists we just attach to the existing session
-                `tmux new -d -s ${sessionName} "${fricasAndArgs}" && tmux set -q remain-on-exit && tmux attach -t ${sessionName} ||
-                tmux send-keys -t ${sessionName}.left ^A ^K ^H '${connectFriCASCode}' ENTER && tmux attach -t ${sessionName}`
-            ]
-        } else {
-            shellPath = fricasExecutable.file
-            shellArgs = [...fricasExecutable.args, ...fricasarg, '-eval', connectFriCASCode]
-        }
-        // start a new transient terminal
-        // that option isn't available on pre 1.65 versions of VS Code,
-        // so we cast the options to `any`
+        // Create an interactive pseudo-terminal for REPL display + input
+        g_pty = new FriCASPseudoTerminal(version)
         g_terminal = vscode.window.createTerminal({
-            name: `FriCAS REPL (v${fricasExecutable.getVersion()})`,
-            shellPath: shellPath,
-            shellArgs: shellArgs,
+            name: `FriCAS REPL (v${version})`,
+            pty: g_pty,
             isTransient: true,
-            env: env,
         } as any)
 
         g_terminal.show(preserveFocus)
-        await fricasIsConnectedPromise.wait()
     } else if (showTerminal) {
         g_terminal.show(preserveFocus)
     }
+
+    // Fire onInit so that completions, workspace, modules etc. activate
+    g_onInit.fire(g_connection)
 }
 
-function fricasConnector(pipename: string, start = false) {
-    const connect = `)lisp (fricas-mcp:start-socket-mcp-client "${pipename.replace(/\\/g, '\\\\')}")`
-    return connect
-}
-
-async function connectREPL() {
-    const pipename = generatePipeName(v4(), 'vsc-fricas-repl')
-    const fricasIsConnectedPromise = startREPLMsgServer(pipename)
-    const connectFriCASCode = fricasConnector(pipename, true)
-
-    const config = vscode.workspace.getConfiguration('fricas')
-
-    if (config.get<boolean>('persistentSession.alwaysCopy')) {
-        vscode.env.clipboard.writeText(connectFriCASCode)
-        vscode.window.showInformationMessage('Start a FriCAS session and execute the code in your clipboard into it.')
-        await _connectREPL(fricasIsConnectedPromise)
-    } else {
-        const copy = 'Copy code'
-        const always = 'Always copy code'
-        const click = await vscode.window.showInformationMessage(
-            'Start a FriCAS session and execute the code copied into your clipboard by the button below into it.',
-            always, copy
-        )
-        if (click === always) {
-            config.update('persistentSession.alwaysCopy', true)
-        }
-        if (click) {
-            vscode.env.clipboard.writeText(connectFriCASCode)
-            await _connectREPL(fricasIsConnectedPromise)
-        }
-    }
-}
-
-async function _connectREPL(fricasIsConnectedPromise) {
-    try {
-        await fricasIsConnectedPromise.wait()
-        vscode.window.showInformationMessage('Successfully connected to external FriCAS REPL.')
-    } catch (err) {
-        vscode.window.showErrorMessage('Failed to connect to external FriCAS REPL.')
-    }
-}
-
-function disconnectREPL() {
-    if (g_terminal) {
-        vscode.window.showInformationMessage('Cannot disconnect from integrated REPL.')
-    } else {
-        if (isConnected()) {
-            g_connection.end()
-            g_connection = undefined
-        }
-    }
-}
 /*
 function debuggerRun(params: DebugLaunchParams) {
     vscode.debug.startDebugging(undefined, {
@@ -320,37 +348,6 @@ const g_onFinishEval = new vscode.EventEmitter<null>()
 export const onFinishEval = g_onFinishEval.event
 
 // code execution start
-
-function startREPLMsgServer(pipename: string) {
-    const connected = new Subject()
-
-    if (g_connection) {
-        g_connection = undefined
-    }
-
-    const server = net.createServer((socket: net.Socket) => {
-        socket.on('close', hadError => {
-            g_onExit.fire(hadError)
-            g_connection = undefined
-            server.close()
-        })
-
-        g_connection = rpc.createMessageConnection(
-            new rpc.StreamMessageReader(socket),
-            new rpc.StreamMessageWriter(socket)
-        )
-
-        g_connection.listen()
-
-        g_onInit.fire(g_connection)
-
-        connected.notify()
-    })
-
-    server.listen(pipename)
-
-    return connected
-}
 
 const g_progress_dict = {}
 
@@ -585,13 +582,24 @@ async function executeFile(uri?: vscode.Uri | string) {
 
     // For .input files, delegate to FriCAS's )read command.
     if (path.endsWith('.input') && !isJmd) {
-        await g_connection.sendRequest(
-            requestTypeCallTool,
-            {
-                name: 'evaluate',
-                arguments: { expression: `)read ${path}` }
+        const readCmd = `)read ${path}`
+        try {
+            const result = await g_connection.sendRequest(
+                requestTypeCallTool,
+                {
+                    name: 'evaluate',
+                    arguments: { expression: readCmd }
+                }
+            )
+            const output = result.content[0].text
+            if (g_pty) {
+                g_pty.echoEvaluation(readCmd, output)
             }
-        )
+        } catch (err) {
+            if (g_pty) {
+                g_pty.echoEvaluation(readCmd, `Error: ${err.message || err}`, true)
+            }
+        }
         return
     }
 
@@ -600,20 +608,30 @@ async function executeFile(uri?: vscode.Uri | string) {
         code = stripMarkdown(code)
     }
 
-    await g_connection.sendRequest(
-        requestTypeReplRunCode,
-        {
-            filename: path,
-            line: 0,
-            column: 0,
-            mod: module,
-            code: code,
-            showCodeInREPL: true,
-            showResultInREPL: true,
-            showErrorInREPL: true,
-            softscope: false
+    try {
+        const result = await g_connection.sendRequest(
+            requestTypeReplRunCode,
+            {
+                filename: path,
+                line: 0,
+                column: 0,
+                mod: module,
+                code: code,
+                showCodeInREPL: true,
+                showResultInREPL: true,
+                showErrorInREPL: true,
+                softscope: false
+            }
+        )
+        if (g_pty && result) {
+            const output = result.all || result.inline
+            g_pty.echoEvaluation(`)read ${path}`, output)
         }
-    )
+    } catch (err) {
+        if (g_pty) {
+            g_pty.echoEvaluation(`)read ${path}`, `Error: ${err.message || err}`, true)
+        }
+    }
 }
 
 async function getBlockRange(params: VersionedTextDocumentPositionParams): Promise<vscode.Position[]> {
@@ -859,6 +877,11 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
         return false
     }
 
+    // Echo the code to the REPL terminal
+    if (g_pty) {
+        g_pty.writeOutput(`\x1b[90m${text}\x1b[0m\n`)
+    }
+
     let r: results.Result = null
     if (resultType !== 'REPL') {
         r = results.addResult(editor, range, ' ⟳ ', '')
@@ -876,6 +899,15 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
         const output = result.content[0].text
         const isError = output.startsWith('Evaluation Error:') || output.startsWith('Julia Evaluation Error:')
 
+        // Echo the result to the REPL terminal
+        if (g_pty && output && output.trim()) {
+            if (isError) {
+                g_pty.writeError(output + '\n')
+            } else {
+                g_pty.writeOutput(output + '\n')
+            }
+        }
+
         if (resultType !== 'REPL') {
             if (r.destroyed && r.text === editor.document.getText(r.range)) {
                 r = results.addResult(editor, range, '', '')
@@ -889,26 +921,34 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
 
         return !isError
     } catch (err) {
-        r.remove(true)
+        if (g_pty) {
+            g_pty.writeError(`Error: ${err.message || err}\n`)
+        }
+        if (r) { r.remove(true) }
         throw (err)
     }
 }
 
 async function executeCodeCopyPaste(text: string, individualLine: boolean) {
-    if (!text.endsWith('\n')) {
-        text = text + '\n'
-    }
+    text = text.trim()
+    if (!text) { return }
 
     await startREPL(true, true)
+    if (!g_connection) { return }
 
-    let lines = text.split(/\r?\n/)
-    lines = lines.filter(line => line !== '')
-    text = lines.join('\n')
-    if (individualLine || process.platform === 'win32') {
-        g_terminal.sendText(text + '\n', false)
-    }
-    else {
-        g_terminal.sendText('\u001B[200~' + text + '\n' + '\u001B[201~', false)
+    try {
+        const result = await g_connection.sendRequest(
+            requestTypeCallTool,
+            { name: 'evaluate', arguments: { expression: text } }
+        )
+        const output = result.content[0].text
+        if (g_pty) {
+            g_pty.echoEvaluation(text, output)
+        }
+    } catch (err) {
+        if (g_pty) {
+            g_pty.echoEvaluation(text, `Error: ${err.message || err}`, true)
+        }
     }
 }
 
@@ -954,35 +994,13 @@ export async function executeInREPL(code: string): Promise<ReturnResult> {
     }
 }
 
-const interrupts = []
-let last_interrupt_index = -1
 async function interrupt() {
-    // always send out internal interrupt
     await softInterrupt()
-    // but we'll try sending a SIGINT if more than 3 interrupts were sent in the last second
-    last_interrupt_index = (last_interrupt_index + 1) % 5
-    interrupts[last_interrupt_index] = new Date()
-    const now = new Date()
-    if (interrupts.filter(x => (now.getTime() - x.getTime()) < 1000).length >= 3) {
-        signalInterrupt()
-    }
 }
 
 async function softInterrupt() {
     try {
         await g_connection.sendNotification('repl/interrupt')
-    } catch (err) {
-        console.warn(err)
-    }
-}
-
-function signalInterrupt() {
-    try {
-        if (process.platform !== 'win32') {
-            g_terminal.processId.then(pid => process.kill(pid, 'SIGINT'))
-        } else {
-            console.warn('Signal interrupts are not supported on Windows.')
-        }
     } catch (err) {
         console.warn(err)
     }
@@ -1212,10 +1230,8 @@ export function activate(context: vscode.ExtensionContext, fricasExecutablesFeat
         }),
         // commands
         registerCommand('language-fricas.startREPL', startREPLCommand),
-        registerCommand('language-fricas.connectREPL', connectREPL),
         registerCommand('language-fricas.stopREPL', stopREPL),
         registerCommand('language-fricas.restartREPL', restartREPL),
-        registerCommand('language-fricas.disconnectREPL', disconnectREPL),
         registerCommand('language-fricas.selectBlock', selectFriCASBlock),
         registerCommand('language-fricas.executeCodeBlockOrSelection', evaluateBlockOrSelection),
         registerCommand('language-fricas.executeCodeBlockOrSelectionAndMove', () => evaluateBlockOrSelection(true)),
