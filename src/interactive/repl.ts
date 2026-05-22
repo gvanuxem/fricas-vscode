@@ -76,6 +76,7 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
     onDidClose = this.closeEmitter.event
 
     private inputBuffer = ''
+    private cursorIndex = 0
     private history: string[] = []
     private historyIndex = -1
     private evaluating = false
@@ -93,14 +94,27 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
         this.writeEmitter.fire('\r\n\x1b[32m-> \x1b[0m')
     }
 
+    private redrawInput() {
+        this.writeEmitter.fire('\r\x1b[2K\x1b[32m-> \x1b[0m' + this.inputBuffer)
+        const moveLeft = this.inputBuffer.length - this.cursorIndex
+        if (moveLeft > 0) {
+            this.writeEmitter.fire(`\x1b[${moveLeft}D`)
+        }
+    }
+
     handleInput(data: string) {
         if (this.evaluating) {
             if (data === '\x03') { softInterrupt() }
             return
         }
+        let needsRedraw = false
         for (let i = 0; i < data.length; i++) {
             const ch = data[i]
             if (ch === '\r') {
+                if (needsRedraw) {
+                    this.redrawInput()
+                    needsRedraw = false
+                }
                 this.writeEmitter.fire('\r\n')
                 if (this.inputBuffer.trim()) {
                     this.history.push(this.inputBuffer)
@@ -110,47 +124,105 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
                     this.showPrompt()
                 }
                 this.inputBuffer = ''
+                this.cursorIndex = 0
             } else if (ch === '\x7f') { // Backspace
-                if (this.inputBuffer.length > 0) {
-                    this.inputBuffer = this.inputBuffer.slice(0, -1)
-                    this.writeEmitter.fire('\b \b')
+                if (this.cursorIndex > 0) {
+                    this.inputBuffer = this.inputBuffer.slice(0, this.cursorIndex - 1) + this.inputBuffer.slice(this.cursorIndex)
+                    this.cursorIndex--
+                    needsRedraw = true
                 }
             } else if (ch === '\x03') { // Ctrl+C
+                if (needsRedraw) {
+                    this.redrawInput()
+                    needsRedraw = false
+                }
                 this.writeEmitter.fire('^C')
                 this.inputBuffer = ''
+                this.cursorIndex = 0
                 this.showPrompt()
-            } else if (ch === '\x1b' && data.length > i + 2) {
-                const seq = data.substring(i, i + 3)
-                if (seq === '\x1b[A') { // Up arrow
-                    i += 2
-                    if (this.historyIndex > 0) {
-                        this.historyIndex--
-                        this.replaceInput(this.history[this.historyIndex])
+            } else if (ch === '\x1b' && i + 1 < data.length && data[i + 1] === '[') {
+                // Parse CSI sequence
+                let j = i + 2
+                while (j < data.length) {
+                    const charCode = data.charCodeAt(j)
+                    if (charCode >= 0x40 && charCode <= 0x7e) {
+                        break
                     }
-                } else if (seq === '\x1b[B') { // Down arrow
-                    i += 2
-                    if (this.historyIndex < this.history.length - 1) {
-                        this.historyIndex++
-                        this.replaceInput(this.history[this.historyIndex])
-                    } else {
-                        this.historyIndex = this.history.length
-                        this.replaceInput('')
+                    j++
+                }
+                if (j < data.length) {
+                    const seq = data.substring(i, j + 1)
+                    i = j // Advance the index to the end of the sequence
+                    
+                    if (seq === '\x1b[A') { // Up arrow
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (this.historyIndex > 0) {
+                            this.historyIndex--
+                            this.replaceInput(this.history[this.historyIndex])
+                        }
+                    } else if (seq === '\x1b[B') { // Down arrow
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (this.historyIndex < this.history.length - 1) {
+                            this.historyIndex++
+                            this.replaceInput(this.history[this.historyIndex])
+                        } else {
+                            this.historyIndex = this.history.length
+                            this.replaceInput('')
+                        }
+                    } else if (seq === '\x1b[D') { // Left arrow
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (this.cursorIndex > 0) {
+                            this.cursorIndex--
+                            this.writeEmitter.fire('\x1b[D')
+                        }
+                    } else if (seq === '\x1b[C') { // Right arrow
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (this.cursorIndex < this.inputBuffer.length) {
+                            this.cursorIndex++
+                            this.writeEmitter.fire('\x1b[C')
+                        }
+                    } else if (seq === '\x1b[H' || seq === '\x1b[1~') { // Home key
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        this.cursorIndex = 0
+                        this.redrawInput()
+                    } else if (seq === '\x1b[F' || seq === '\x1b[4~') { // End key
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        this.cursorIndex = this.inputBuffer.length
+                        this.redrawInput()
+                    } else if (seq === '\x1b[3~') { // Delete key
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (this.cursorIndex < this.inputBuffer.length) {
+                            this.inputBuffer = this.inputBuffer.slice(0, this.cursorIndex) + this.inputBuffer.slice(this.cursorIndex + 1)
+                            this.redrawInput()
+                        }
                     }
-                } else {
-                    i += 2 // skip unknown escape sequences
                 }
             } else {
-                this.inputBuffer += ch
-                this.writeEmitter.fire(ch)
+                if (this.cursorIndex === this.inputBuffer.length) {
+                    this.inputBuffer += ch
+                    this.cursorIndex++
+                    if (needsRedraw) {
+                        this.redrawInput()
+                        needsRedraw = false
+                    } else {
+                        this.writeEmitter.fire(ch)
+                    }
+                } else {
+                    this.inputBuffer = this.inputBuffer.slice(0, this.cursorIndex) + ch + this.inputBuffer.slice(this.cursorIndex)
+                    this.cursorIndex++
+                    needsRedraw = true
+                }
             }
+        }
+        if (needsRedraw) {
+            this.redrawInput()
         }
     }
 
     private replaceInput(text: string) {
-        const clearLen = this.inputBuffer.length
-        this.writeEmitter.fire('\r\x1b[32m-> \x1b[0m' + ' '.repeat(clearLen) + '\r\x1b[32m-> \x1b[0m')
         this.inputBuffer = text
-        this.writeEmitter.fire(text)
+        this.cursorIndex = text.length
+        this.redrawInput()
     }
 
     private async doEvaluate(code: string) {
@@ -198,6 +270,10 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
             }
         }
         this.writeEmitter.fire('\x1b[32m-> \x1b[0m' + this.inputBuffer)
+        const moveLeft = this.inputBuffer.length - this.cursorIndex
+        if (moveLeft > 0) {
+            this.writeEmitter.fire(`\x1b[${moveLeft}D`)
+        }
     }
 }
 
