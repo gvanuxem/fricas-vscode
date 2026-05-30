@@ -81,11 +81,19 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
     private historyIndex = -1
     private evaluating = false
 
-    constructor(private version: string) {}
+    private readyResolve: () => void
+    public ready: Promise<void>
+
+    constructor(private version: string) {
+        this.ready = new Promise(resolve => {
+            this.readyResolve = resolve
+        })
+    }
 
     open() {
         this.writeEmitter.fire(`\x1b[1mFriCAS REPL (v${this.version})\x1b[0m\r\n`)
         this.showPrompt()
+        this.readyResolve()
     }
 
     close() { /* terminal closed by user */ }
@@ -669,10 +677,12 @@ async function executeFile(uri?: vscode.Uri | string) {
             )
             const output = result.content[0].text
             if (g_pty) {
+                await g_pty.ready
                 g_pty.echoEvaluation(readCmd, output)
             }
         } catch (err) {
             if (g_pty) {
+                await g_pty.ready
                 g_pty.echoEvaluation(readCmd, `Error: ${err.message || err}`, true)
             }
         }
@@ -700,11 +710,13 @@ async function executeFile(uri?: vscode.Uri | string) {
             }
         )
         if (g_pty && result) {
+            await g_pty.ready
             const output = result.all || result.inline
             g_pty.echoEvaluation(`)read ${path}`, output)
         }
     } catch (err) {
         if (g_pty) {
+            await g_pty.ready
             g_pty.echoEvaluation(`)read ${path}`, `Error: ${err.message || err}`, true)
         }
     }
@@ -955,6 +967,7 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
 
     // Echo the code to the REPL terminal
     if (g_pty) {
+        await g_pty.ready
         g_pty.writeOutput(`\x1b[90m${text}\x1b[0m\n`)
     }
 
@@ -1019,10 +1032,12 @@ async function executeCodeCopyPaste(text: string, individualLine: boolean) {
         )
         const output = result.content[0].text
         if (g_pty) {
+            await g_pty.ready
             g_pty.echoEvaluation(text, output)
         }
     } catch (err) {
         if (g_pty) {
+            await g_pty.ready
             g_pty.echoEvaluation(text, `Error: ${err.message || err}`, true)
         }
     }
@@ -1244,6 +1259,18 @@ export function activate(context: vscode.ExtensionContext, fricasExecutablesFeat
             connection.onNotification(notifyTypeProgress, updateProgress)
             setContext('fricas.isEvaluating', false)
             setContext('fricas.hasREPL', true)
+
+            const config = vscode.workspace.getConfiguration('fricas')
+            try {
+                connection.sendNotification('repl/togglePlotPane', { enable: config.get('usePlotPane') })
+                connection.sendNotification('repl/toggleDiagnostics', { enable: config.get('showRuntimeDiagnostics') })
+                const useProgress = config.get('useProgressFrontend')
+                if (useProgress !== undefined) {
+                    connection.sendNotification('repl/toggleProgress', { enable: useProgress })
+                }
+            } catch (err) {
+                console.warn('Failed to send initial config to REPL connection:', err)
+            }
         })),
         onExit(() => {
             results.removeAll()
