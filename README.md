@@ -2,7 +2,7 @@
 
 [![FriCAS VS Code extension](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml/badge.svg)](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml)
 
-This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google Antigravity](https://antigravity.google/)
+This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google®  Antigravity](https://antigravity.google/)
 
 ⚠️ WARNING: This extension is under active development! ⚠️
 
@@ -74,3 +74,7 @@ The extension currently provides:
 1. If you face any issues, please open an issue [here](https://github.com/gvanuxem/fricas-vscode/issues).
 2. If there is already an issue opened related to yours, please leave an upvote/downvote on the issue.
 3. Contributions are always welcome!
+
+## Trademark notice
+
+1. Google is a registered trademark of Google Inc.  All rights reserved.
