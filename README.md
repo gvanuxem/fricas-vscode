@@ -19,7 +19,7 @@ This [VS Code](https://code.visualstudio.com) like extension provides support fo
 5. Build the extension:
     * Run `vsce package`
 
-### Installing FriCAS/VS Code/VS Code FriCAS extension
+### Installing FriCAS/VS extension
 1. Install FriCAS for your platform: https://github.com/fricas/fricas/releases/
 2. Install VS Code for your platform: https://code.visualstudio.com/download or
     install the open source version, on a Debian-based system issue
@@ -65,7 +65,6 @@ The extension currently provides:
 * ``work in progress`` documentation navigation/search
 * ``work in progress`` hover help
 * ``work in progress`` code navigation
-* ``planned`` debugger
 * ``planned`` integrated plots
 
 
