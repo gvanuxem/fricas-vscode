@@ -30,7 +30,7 @@
     {
       "comment": "keywords that delimit flow conditionals",
       "name": "keyword.control.conditional.fricas",
-      "match": "\\b(if|then|else|case)\\b"
+      "match": "\\b(if|then|else|case|try|finally)\\b"
     },
     {
       "comment": "keywords that delimit loops",
@@ -44,7 +44,7 @@
     },
     {
       "name": "keyword.operator.logical.fricas",
-      "match": "\\b(and|in|is|isnt|not|or|has)\\b"
+      "match": "\\b(and|in|is|not|or|has)\\b"
     },
     {
       "match": "\\b(default|local|define|export|extend|free|fluid)\\b",
