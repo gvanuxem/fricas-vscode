@@ -4,6 +4,10 @@
 
 This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google®  Antigravity](https://antigravity.google/)
 
+
+![Capture1](https://github.com/user-attachments/assets/6bf2fd53-3b26-403d-8ce7-bae964ac98c0)
+
+
 ⚠️ WARNING: This extension is under active development! ⚠️
 
 ## Getting started
