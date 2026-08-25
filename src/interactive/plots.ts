@@ -44,11 +44,9 @@ interface Plot {
 class PlotNavigatorProvider implements vscode.WebviewViewProvider {
     private view?: vscode.WebviewView
     private plotsInfo?: Array<Plot>
-    private context: vscode.ExtensionContext
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(_context: vscode.ExtensionContext) {
         this.plotsInfo = []
-        this.context = context
     }
 
     resolveWebviewView(view: vscode.WebviewView, context: vscode.WebviewViewResolveContext) {
@@ -78,20 +76,62 @@ class PlotNavigatorProvider implements vscode.WebviewViewProvider {
     }
 
     getWebviewHTML(innerHTML: string) {
-        const extensionPath = this.context.extensionPath
-        const plotterStylesheet = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'plotter', 'plotter.css')))
-        const plotterJavaScript = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'scripts', 'plots', 'panel_webview.js')))
-
-        return `<html lang="en" class='theme--plotter'>
+        return `<html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <title>FriCAS Plots</title>
-                <link href=${plotterStylesheet} rel="stylesheet" type="text/css">
+                <style>
+                    body {
+                        padding: 10px;
+                        font-family: var(--vscode-font-family);
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-sideBar-background);
+                        box-sizing: border-box;
+                    }
+                    .thumbnail {
+                        border: 1px solid var(--vscode-widget-border, #444);
+                        border-radius: 4px;
+                        padding: 8px 12px;
+                        margin-bottom: 8px;
+                        cursor: pointer;
+                        background: var(--vscode-editor-background);
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        transition: background 0.15s, border-color 0.15s;
+                    }
+                    .thumbnail:hover {
+                        background: var(--vscode-list-hoverBackground);
+                        border-color: var(--vscode-focusBorder);
+                    }
+                    .thumbnail.active {
+                        border-color: var(--vscode-focusBorder);
+                        background: var(--vscode-list-activeSelectionBackground);
+                        color: var(--vscode-list-activeSelectionForeground);
+                    }
+                    .thumbnail img {
+                        max-width: 100%;
+                        height: auto;
+                        display: block;
+                    }
+                    .float-right {
+                        opacity: 0.7;
+                        font-size: 0.85em;
+                    }
+                </style>
             </head>
-            <body style="padding: 10px 1em 1em 1em">
+            <body>
                 ${innerHTML}
-                <script src=${plotterJavaScript}></script>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    function toPlot(index) {
+                        vscode.postMessage({
+                            type: 'toPlot',
+                            value: index
+                        });
+                    }
+                </script>
             </body>
         </html>`
     }
@@ -113,19 +153,20 @@ class PlotNavigatorProvider implements vscode.WebviewViewProvider {
         return this.plotsInfo
     }
 
-    plotToThumbnail(plot: Plot, index: number) {
+    plotToThumbnail = (plot: Plot, index: number) => {
+        const isActive = index === g_currentPlotIndex ? ' active' : ''
         let thumbnailHTML: string
         switch (plot.thumbnail_type) {
         case 'image':
-            thumbnailHTML = `<div class="thumbnail" onclick="toPlot(${index})">
+            thumbnailHTML = `<div class="thumbnail${isActive}" onclick="toPlot(${index})">
                     <img src="${plot.thumbnail_data}" alt="Plot ${index + 1}" />
                 </div>`
             break
         default:
         case 'text': // This is a fallback which shows the index of the plot
-            thumbnailHTML = `<div class="thumbnail" onclick="toPlot(${index})">
-                Plot ${index + 1}
-                <small class="float-right">${plot.time.toLocaleTimeString()}</small>
+            thumbnailHTML = `<div class="thumbnail${isActive}" onclick="toPlot(${index})">
+                <span>Plot ${index + 1}</span>
+                <small class="float-right">${plot.time ? new Date(plot.time).toLocaleTimeString() : ''}</small>
             </div>`
             break
         }
@@ -269,12 +310,13 @@ export function showPlotPane() {
     const plotTitle = makeTitle()
 
     if (!g_plotPanel) {
+        const viewColumn = g_context?.globalState?.get<vscode.ViewColumn>('fricasPlotPanelViewColumn', vscode.ViewColumn.Two) ?? vscode.ViewColumn.Two
         g_plotPanel = vscode.window.createWebviewPanel(
             'jlplotpane',
             plotTitle,
             {
                 preserveFocus: true,
-                viewColumn: g_context.globalState.get('fricasPlotPanelViewColumn', vscode.ViewColumn.Two)
+                viewColumn: viewColumn
             },
             {
                 enableScripts: true
@@ -282,7 +324,9 @@ export function showPlotPane() {
         )
 
         const viewStateListener = g_plotPanel.onDidChangeViewState(({ webviewPanel }) => {
-            g_context.globalState.update('fricasPlotPanelViewColumn', webviewPanel.viewColumn)
+            if (webviewPanel.viewColumn !== undefined) {
+                g_context?.globalState?.update('fricasPlotPanelViewColumn', webviewPanel.viewColumn)
+            }
             setContext(c_fricasPlotPanelActiveContextKey, webviewPanel.active)
         })
 
@@ -304,13 +348,13 @@ export function showPlotPane() {
 
         g_plotPanel.webview.onDidReceiveMessage(plotPanelOnMessage)
         if (!g_plotPanel.visible) {
-            g_plotPanel.reveal(g_plotPanel.viewColumn, true)
+            g_plotPanel.reveal(g_plotPanel.viewColumn ?? vscode.ViewColumn.Two, true)
         }
     } else {
         g_plotPanel.title = plotTitle
         g_plotPanel.webview.html = getPlotPaneContent(g_plotPanel.webview)
         if (!g_plotPanel.visible) {
-            g_plotPanel.reveal(g_plotPanel.viewColumn, true)
+            g_plotPanel.reveal(g_plotPanel.viewColumn ?? vscode.ViewColumn.Two, true)
         }
     }
 }
@@ -337,6 +381,7 @@ function disablePlotPane() {
 
 function updatePlotPane() {
     showPlotPane()
+    g_plotNavigatorProvider?.reloadPlotPane()
 }
 
 export function plotPanePrev() {
@@ -416,11 +461,14 @@ img#plot-element.pixelated {
 // wrap a source string with an <img> tag that shows the content
 // scaled to fit the plot pane unless the plot pane is bigger than the image
 function wrapImagelike(srcString: string) {
-    const isSvg = srcString.includes('data:image/svg+xml')
+    const isSvg = srcString.includes('data:image/svg+xml') || srcString.startsWith('<svg')
     let svgTag = ''
     if (isSvg) {
-        svgTag = decodeURIComponent(srcString).replace(/^data.*<\?xml version="1\.0" encoding="utf-8"\?>\n/i, '')
-        svgTag = `<div id="plot-element">${svgTag}</div>`
+        let clean = srcString.startsWith('data:image/svg+xml,')
+            ? decodeURIComponent(srcString.slice('data:image/svg+xml,'.length))
+            : srcString
+        clean = clean.replace(/^<\?xml[^>]*\?>\s*/i, '').trim()
+        svgTag = `<div id="plot-element">${clean}</div>`
     }
 
     return `<html lang="en" style="padding:0;margin:0;">
@@ -433,7 +481,7 @@ function wrapImagelike(srcString: string) {
             </style>
         </head>
         <body style="padding:0;margin:0;">
-            ${isSvg ? svgTag : `<img id= "plot-element" style = "max-height: 100vh; max-width: 100vw; display:block;" src = "${srcString}" >`}
+            ${isSvg ? svgTag : `<img id="plot-element" style="max-height: 100vh; max-width: 100vw; display:block;" src="${srcString}">`}
         </body>
         </html>`
 }
@@ -441,6 +489,10 @@ function wrapImagelike(srcString: string) {
 export function displayPlot(params: { kind: string, data: string }, kernel?: FriCASKernel) {
     const kind = params.kind
     const payload = params.data
+
+    if (kernel) {
+        kernel.appendCellOutput([{ mimetype: kind, data: payload }])
+    }
 
     if (!(kind.startsWith('application/vnd.dataresource'))) {
         // We display a text thumbnail first just in case that JavaScript errors in the webview or did not successfully send out message and corrupt thumbnail indices.
@@ -754,14 +806,13 @@ export function displayPlot(params: { kind: string, data: string }, kernel?: Fri
     }
     else if (kind === 'application/vnd.plotly.v1+json') {
         showPlotPane()
-        const uriPlotly = g_plotPanel.webview.asWebviewUri(vscode.Uri.file(path.join(g_context.extensionPath, 'libs', 'plotly', 'plotly.min.js')))
         const plotPaneContent = `
         <html>
         <head>
-            <script src="${uriPlotly}"></script>
+            <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
         </head>
         <body>
-            <div id="plot-element" style="position: absolute; max-width: 100%; max-height: 100vh; top: 0; left: 0;"></div>
+            <div id="plot-element" style="position: absolute; width: 100vw; height: 100vh; top: 0; left: 0;"></div>
         </body>
         <script type="text/javascript">
             function onResize () {
@@ -782,6 +833,15 @@ export function displayPlot(params: { kind: string, data: string }, kernel?: Fri
         g_currentPlotIndex = g_plots.push(plotPaneContent) - 1
         showPlotPane()
     }
+    else if (kind === 'image/jpeg' || kind === 'image/jpg') {
+        const plotPaneContent = wrapImagelike(`data:${kind};base64,${payload}`)
+        g_currentPlotIndex = g_plots.push(plotPaneContent) - 1
+        showPlotPane()
+    }
+    else if (kind === 'text/html') {
+        g_currentPlotIndex = g_plots.push(payload) - 1
+        showPlotPane()
+    }
     else if (kind === 'application/vnd.dataresource+json') {
         return displayTable(payload, g_context, false, kernel)
     }
@@ -789,7 +849,7 @@ export function displayPlot(params: { kind: string, data: string }, kernel?: Fri
         return displayTable(payload, g_context, true, kernel)
     }
     else {
-        throw new Error()
+        console.warn(`FriCAS Plot: Unrecognized display MIME type: ${kind}`)
     }
 
     if (vscode.workspace.getConfiguration('fricas').get('focusPlotNavigator')) {

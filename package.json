@@ -2,7 +2,7 @@
     "name": "language-fricas",
     "displayName": "FriCAS",
     "description": "FriCAS Language Support",
-    "version": "0.0.2-alpha",
+    "version": "0.0.3-alpha",
     "preview": true,
     "publisher": "gvanuxem",
     "engines": {
@@ -27,15 +27,8 @@
         "Data Science"
     ],
     "activationEvents": [
-        "onDebugInitialConfigurations",
-        "onDebugResolve:fricas",
-        "onCommand:language-fricas.executeFriCASBlockInREPL",
-        "onCommand:language-fricas.debug.getActiveFriCASEnvironment",
         "onLanguage:fricasmarkdown",
         "onNotebook:jupyter-notebook",
-        "onView:fricas-explorer.FRICASREPLVariables",
-        "onView:fricas-explorer.fricas-documentation",
-        "onView:fricas-explorer.fricas-plot-navigator",
         "workspaceContains:Project.toml"
     ],
     "main": "./dist/extension",
@@ -665,7 +658,7 @@
                 },
                 "fricas.usePlotPane": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Display plots within VS Code. Might require a restart of the FriCAS process."
                 },
                 "fricas.showRuntimeDiagnostics": {

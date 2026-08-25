@@ -22,6 +22,10 @@ import { FriCASNotebookFeature } from './notebookFeature'
 const notifyTypeDisplay = new NotificationType<{
     items: { mimetype: string; data: string }[]
 }>('notebook/display')
+const notifyTypeSingleDisplay = new NotificationType<{
+    kind: string
+    data: any
+}>('display')
 const notifyTypeStreamoutput = new NotificationType<{
     name: string
     data: string
@@ -72,6 +76,48 @@ export class FriCASKernel {
     public dispose() {
         this.stop()
         this._localDisposables.forEach((d) => d.dispose())
+    }
+
+    public appendCellOutput(items: { mimetype: string; data: any }[]) {
+        const execution = this._currentExecutionRequest
+        if (execution) {
+            execution.appendOutput(
+                new vscode.NotebookCellOutput(
+                    items.map((item) => {
+                        if (
+                            item.mimetype === 'image/png' ||
+                            item.mimetype === 'image/jpeg' ||
+                            item.mimetype === 'image/gif'
+                        ) {
+                            return new vscode.NotebookCellOutputItem(
+                                Buffer.from(item.data, 'base64'),
+                                item.mimetype
+                            )
+                        } else if (item.mimetype === 'image/svg+xml') {
+                            return vscode.NotebookCellOutputItem.text(
+                                item.data,
+                                item.mimetype
+                            )
+                        } else if (item.mimetype.endsWith('+json')) {
+                            return vscode.NotebookCellOutputItem.json(
+                                item.data,
+                                item.mimetype
+                            )
+                        } else if (item.mimetype === 'fricasvscode/html') {
+                            return vscode.NotebookCellOutputItem.text(
+                                item.data,
+                                'text/html'
+                            )
+                        } else {
+                            return vscode.NotebookCellOutputItem.text(
+                                item.data,
+                                item.mimetype
+                            )
+                        }
+                    })
+                )
+            )
+        }
     }
 
     public async queueCell(cell: vscode.NotebookCell): Promise<void> {
@@ -219,34 +265,11 @@ export class FriCASKernel {
                 )
 
                 this._msgConnection.onNotification(notifyTypeDisplay, ({ items }) => {
-                    const execution = this._currentExecutionRequest
-                    if (execution) {
-                        execution.appendOutput(
-                            new vscode.NotebookCellOutput(
-                                items.map((item) => {
-                                    if (
-                                        item.mimetype === 'image/png' ||
-                                        item.mimetype === 'image/jpeg'
-                                    ) {
-                                        return new vscode.NotebookCellOutputItem(
-                                            Buffer.from(item.data, 'base64'),
-                                            item.mimetype
-                                        )
-                                    } else if (item.mimetype.endsWith('+json')) {
-                                        return vscode.NotebookCellOutputItem.json(
-                                            item.data,
-                                            item.mimetype
-                                        )
-                                    } else {
-                                        return vscode.NotebookCellOutputItem.text(
-                                            item.data,
-                                            item.mimetype
-                                        )
-                                    }
-                                })
-                            )
-                        )
-                    }
+                    this.appendCellOutput(items)
+                })
+
+                this._msgConnection.onNotification(notifyTypeSingleDisplay, ({ kind, data }) => {
+                    this.appendCellOutput([{ mimetype: kind, data }])
                 })
 
                 this._msgConnection.onNotification(

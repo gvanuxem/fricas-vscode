@@ -511,6 +511,8 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     }
 
     private getLandingPageMD() {
+        const localDoc = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')
+        const localDocUrl = localDoc ? (localDoc.startsWith('http://') || localDoc.startsWith('https://') ? localDoc : `https://${localDoc}`) : 'https://gvanuxem.github.io/jlfricas.documentation/api'
         return `
 # FriCAS Documentation
 
@@ -521,9 +523,10 @@ You can search for documentation for domains, categories, packages, and operatio
 Alternatively, place your cursor on a word in the editor and use the **FriCAS: Show Documentation** command (shortcut: \`Alt+J Alt+D\`).
 
 ### Useful links:
-* [FriCAS Local Library Documentation](${vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')})
-* [jlFriCAS home page](https://gvanuxem.github.io/jlfricas/)
-* [jlFriCAS Documentation pages](https://gvanuxem.github.io/jlfricas.documentation/)
+* [jlFriCAS Home Page](https://gvanuxem.github.io/jlfricas)
+* [jlFriCAS Documentation](https://gvanuxem.github.io/jlfricas.documentation/)
+* [jlFriCAS on GitHub](https://github.com/gvanuxem/jlfricas)
+* [FriCAS Local Library Documentation](${localDocUrl})
 * [FriCAS API Documentation](https://fricas.github.io/api/)
 `
     }

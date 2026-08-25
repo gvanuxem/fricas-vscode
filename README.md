@@ -58,14 +58,14 @@ in JSON, so you need to use ``\\`` as the path separator character on Windows.
 
 The extension currently provides:
 
-* ``work in progress`` syntax highlighting
+* ``done`` syntax highlighting
 * ``work in progress`` FriCAS specific commands
-* ``work in progress`` integrated FriCAS REPL
-* ``work in progress`` code completion
-* ``work in progress`` documentation navigation/search
-* ``work in progress`` hover help
-* ``work in progress`` code navigation
-* ``planned`` integrated plots
+* ``done`` integrated FriCAS REPL (require jlFriCAS with MCP support)
+* ``done`` code completion
+* ``almost done`` documentation navigation/search
+* ``done`` hover help (require jlFriCAS with MCP support)
+* ``planned`` code navigation
+* ``almost done`` integrated plots (require jlFriCAS with MCP support)
 
 
 ## Questions, Feature requests and contributions
