@@ -64,10 +64,10 @@ The extension currently provides:
 
 * ``done`` syntax highlighting
 * ``work in progress`` FriCAS specific commands
-* ``done`` integrated FriCAS REPL (require jlFriCAS with MCP support)
+* ``done`` integrated FriCAS REPL (require FriCAS with MCP support)
 * ``done`` code completion
 * ``almost done`` documentation navigation/search
-* ``done`` hover help (require jlFriCAS with MCP support)
+* ``done`` hover help (require FriCAS with MCP support)
 * ``planned`` code navigation
 * ``almost done`` integrated plots (require jlFriCAS with MCP support)
 
