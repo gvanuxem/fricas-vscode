@@ -308,7 +308,7 @@ function isConnected() {
     return Boolean(g_connection)
 }
 
-async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
+export async function startREPL(preserveFocus: boolean, showTerminal: boolean = true) {
     if (isConnected()) {
         if (g_terminal && showTerminal) {
             g_terminal.show(preserveFocus)
@@ -411,7 +411,6 @@ export const notifyTypeDisplay = new rpc.NotificationType<{ kind: string, data: 
 const notifyTypeReplStartEval = new rpc.NotificationType<void>('repl/starteval')
 export const notifyTypeReplFinishEval = new rpc.NotificationType<void>('repl/finisheval')
 export const notifyTypeReplShowInGrid = new rpc.NotificationType<{ code: string }>('repl/showingrid')
-//const notifyTypeShowProfilerResult = new rpc.NotificationType<{ trace: any, typ: string }>('repl/showprofileresult')
 const notifyTypeOpenFile = new rpc.NotificationType<{ path: string, line: number }>('repl/openFile')
 
 interface Progress {
@@ -1251,10 +1250,6 @@ export function activate(context: vscode.ExtensionContext, fricasExecutablesFeat
             //connection.onNotification(notifyTypeDebuggerEnter, debuggerEnter)
             connection.onNotification(notifyTypeReplStartEval, () => g_onStartEval.fire(null))
             connection.onNotification(notifyTypeReplFinishEval, () => g_onFinishEval.fire(null))
-            //connection.onNotification(notifyTypeShowProfilerResult, (data) => profilerFeature.showTrace({
-            //    data: data.trace,
-            //    type: data.typ
-            //}))
             connection.onNotification(notifyTypeOpenFile, ({ path, line }) => openFile(path, line))
             connection.onNotification(notifyTypeProgress, updateProgress)
             setContext('fricas.isEvaluating', false)

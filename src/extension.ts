@@ -7,16 +7,13 @@ import * as os from 'os'
 import * as path from 'path'
 import * as vscode from 'vscode'
 import { LanguageClient, LanguageClientOptions, RevealOutputChannelOn, ServerOptions } from 'vscode-languageclient/node'
-//import * as debugViewProvider from './debugger/debugConfig'
-//import { FriCASDebugFeature } from './debugger/debugFeature'
 import * as documentation from './docbrowser/documentation'
-//import { ProfilerFeature } from './interactive/profiler'
 import { FriCASDocumentSymbolProvider } from './outline'
 import * as repl from './interactive/repl'
 import { WorkspaceFeature } from './interactive/workspace'
 import * as spadpkgenv from './spadpkgenv'
 import { FriCASExecutablesFeature } from './fricasexepath'
-//import { FriCASNotebookFeature } from './notebook/notebookFeature'
+import { FriCASNotebookFeature } from './notebook/notebookFeature'
 import * as smallcommands from './smallcommands'
 import * as tasks from './tasks'
 import { registerCommand, setContext } from './utils'
@@ -66,11 +63,8 @@ export async function activate(context: vscode.ExtensionContext) {
                 SymbolProvider
             )
         );
-        //const profilerFeature = new ProfilerFeature(context)
-        //context.subscriptions.push(profilerFeature)
 
         // Active features from other files
-        //const compiledProvider = debugViewProvider.activate(context)
         g_fricasExecutablesFeature = new FriCASExecutablesFeature(context, globalDiagnosticOutputFeature)
         context.subscriptions.push(g_fricasExecutablesFeature)
 
@@ -120,10 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const workspaceFeature = new WorkspaceFeature(context)
         context.subscriptions.push(workspaceFeature)
-        //context.subscriptions.push(new FriCASNotebookFeature(context, g_fricasExecutablesFeature, workspaceFeature))
-        //context.subscriptions.push(new FriCASDebugFeature(context, compiledProvider, g_fricasExecutablesFeature))
-        //g_testFeature = new TestFeature(context, g_fricasExecutablesFeature, workspaceFeature)
-        //context.subscriptions.push(g_testFeature)
+        context.subscriptions.push(new FriCASNotebookFeature(context, g_fricasExecutablesFeature, workspaceFeature))
 
         g_startupNotification = vscode.window.createStatusBarItem()
         context.subscriptions.push(g_startupNotification)

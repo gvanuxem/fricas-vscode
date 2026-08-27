@@ -1,44 +1,9 @@
-import { exists } from 'async-file'
 import { Subject } from 'await-notify'
-import { ChildProcess, spawn } from 'child_process'
-import * as net from 'net'
-import * as path from 'path'
-import { v4 } from 'uuid'
 import * as vscode from 'vscode'
-import {
-    CancellationToken,
-    createMessageConnection,
-    MessageConnection,
-    NotificationType,
-    RequestType,
-    StreamMessageReader,
-    StreamMessageWriter
-} from 'vscode-jsonrpc/node'
-import { getAbsEnvPath } from '../spadpkgenv'
+import { CancellationToken } from 'vscode-jsonrpc/node'
 import { FriCASExecutable } from '../fricasexepath'
-import { generatePipeName } from '../utils'
 import { FriCASNotebookFeature } from './notebookFeature'
-
-const notifyTypeDisplay = new NotificationType<{
-    items: { mimetype: string; data: string }[]
-}>('notebook/display')
-const notifyTypeSingleDisplay = new NotificationType<{
-    kind: string
-    data: any
-}>('display')
-const notifyTypeStreamoutput = new NotificationType<{
-    name: string
-    data: string
-}>('streamoutput')
-const requestTypeRunCell = new RequestType<
-    { filename: string; line: number; column: number; code: string },
-    { success: boolean; error: { message: string; name: string; stack: string } },
-    void
->('notebook/runcell')
-
-// function getDisplayPathName(pathValue: string): string {
-//     return pathValue.startsWith(homedir()) ? `~${path.relative(homedir(), pathValue)}` : pathValue
-// }
+import { g_connection, requestTypeCallTool, startREPL } from '../interactive/repl'
 
 export class FriCASKernel {
     private _localDisposables: vscode.Disposable[] = []
@@ -46,9 +11,6 @@ export class FriCASKernel {
     private _scheduledExecutionRequests: vscode.NotebookCellExecution[] = []
     private _currentExecutionRequest: vscode.NotebookCellExecution = null
     private _processExecutionRequests = new Subject()
-
-    private _kernelProcess: ChildProcess
-    public _msgConnection: MessageConnection
     private _current_request_id: number = 0
 
     private _onCellRunFinished = new vscode.EventEmitter<void>()
@@ -61,9 +23,10 @@ export class FriCASKernel {
     public onStopped = this._onStopped.event
 
     private _tokenSource = new vscode.CancellationTokenSource()
+    private _isDisposed = false
 
     constructor(
-        private extensionPath: string,
+        _extensionPath: string,
         public controller: vscode.NotebookController,
         public notebook: vscode.NotebookDocument,
         public fricasExecutable: FriCASExecutable,
@@ -73,7 +36,13 @@ export class FriCASKernel {
         this.run(this._tokenSource.token)
     }
 
+    public get _msgConnection() {
+        return g_connection
+    }
+
     public dispose() {
+        if (this._isDisposed) { return }
+        this._isDisposed = true
         this.stop()
         this._localDisposables.forEach((d) => d.dispose())
     }
@@ -103,7 +72,7 @@ export class FriCASKernel {
                                 item.data,
                                 item.mimetype
                             )
-                        } else if (item.mimetype === 'fricasvscode/html') {
+                        } else if (item.mimetype === 'fricasvscode/html' || item.mimetype === 'text/html') {
                             return vscode.NotebookCellOutputItem.text(
                                 item.data,
                                 'text/html'
@@ -121,16 +90,16 @@ export class FriCASKernel {
     }
 
     public async queueCell(cell: vscode.NotebookCell): Promise<void> {
-        // First clear output
+        // Clear previous output
         const clearOutputExecution =
             this.controller.createNotebookCellExecution(cell)
         clearOutputExecution.start()
         await clearOutputExecution.clearOutput()
         clearOutputExecution.end(undefined)
 
-        // Now create execution object that actually will run the code
+        // Create execution object that actually will run the code
         const execution = this.controller.createNotebookCellExecution(cell)
-        execution.token.onCancellationRequested((e) => {
+        execution.token.onCancellationRequested(() => {
             execution.end(undefined)
             this.interrupt()
         })
@@ -140,7 +109,7 @@ export class FriCASKernel {
     }
 
     private async messageLoop(token: CancellationToken) {
-        while (true) {
+        while (!this._isDisposed) {
             if (token.isCancellationRequested) {
                 return
             }
@@ -150,7 +119,7 @@ export class FriCASKernel {
                     this._scheduledExecutionRequests.shift()
 
                 if (this._currentExecutionRequest.token.isCancellationRequested) {
-                    console.log('this is cancelled')
+                    this._currentExecutionRequest.end(undefined)
                 } else {
                     const executionOrder = ++this._current_request_id
                     this._currentExecutionRequest.executionOrder = executionOrder
@@ -158,26 +127,58 @@ export class FriCASKernel {
                     const runStartTime = Date.now()
                     this._currentExecutionRequest.start(runStartTime)
 
-                    const result = await this._msgConnection.sendRequest(
-                        requestTypeRunCell,
-                        {
-                            filename: this.notebook.uri.fsPath,
-                            line: 0,
-                            column: 0,
-                            code: this._currentExecutionRequest.cell.document.getText(),
-                        }
-                    )
-
-                    if (!result.success) {
-                        this._currentExecutionRequest.appendOutput(
-                            new vscode.NotebookCellOutput([
-                                vscode.NotebookCellOutputItem.error(result.error),
+                    const code = this._currentExecutionRequest.cell.document.getText()
+                    if (!code.trim()) {
+                        this._currentExecutionRequest.end(true, Date.now())
+                    } else {
+                        try {
+                            await startREPL(true)
+                            if (!g_connection) {
+                                throw new Error('Could not connect to FriCAS Language Server.')
+                            }
+                            const result = await g_connection.sendRequest(
+                                requestTypeCallTool,
+                                {
+                                    name: 'evaluate',
+                                    arguments: { expression: code }
+                                }
+                            )
+                            const output = result?.content?.[0]?.text ?? ''
+                            const isError = output.startsWith('Evaluation Error:') || output.startsWith('Julia Evaluation Error:')
+                            if (isError) {
+                                this._currentExecutionRequest.appendOutput([
+                                    new vscode.NotebookCellOutput([
+                                        vscode.NotebookCellOutputItem.error({
+                                            name: 'FriCAS Error',
+                                            message: output,
+                                            stack: ''
+                                        })
+                                    ])
+                                ])
+                                this._currentExecutionRequest.end(false, Date.now())
+                            } else {
+                                if (output && output.trim()) {
+                                    this._currentExecutionRequest.appendOutput([
+                                        new vscode.NotebookCellOutput([
+                                            vscode.NotebookCellOutputItem.text(output, 'text/plain')
+                                        ])
+                                    ])
+                                }
+                                this._currentExecutionRequest.end(true, Date.now())
+                            }
+                        } catch (err: any) {
+                            this._currentExecutionRequest.appendOutput([
+                                new vscode.NotebookCellOutput([
+                                    vscode.NotebookCellOutputItem.error({
+                                        name: 'Execution Error',
+                                        message: err.message || String(err),
+                                        stack: err.stack || ''
+                                    })
+                                ])
                             ])
-                        )
+                            this._currentExecutionRequest.end(false, Date.now())
+                        }
                     }
-
-                    const runEndTime = Date.now()
-                    this._currentExecutionRequest.end(result.success, runEndTime)
                 }
                 this._currentExecutionRequest = null
 
@@ -192,213 +193,22 @@ export class FriCASKernel {
         }
     }
 
-    private async containsFriCASEnv(folder: string) {
-        return (
-            ((await exists(path.join(folder, 'Project.toml'))) &&
-                (await exists(path.join(folder, 'Manifest.toml')))) ||
-            ((await exists(path.join(folder, 'FriCASProject.toml'))) &&
-                (await exists(path.join(folder, 'FriCASManifest.toml'))))
-        )
-    }
-
-    private async getAbsEnvPathForNotebook() {
-        if (this.notebook.isUntitled) {
-            // We don't know the location of the notebook, so just use the default env
-            return await getAbsEnvPath()
-        } else {
-            // First, figure out whether the notebook is in the workspace
-            if (
-                this.notebook.uri.scheme === 'file' &&
-                vscode.workspace.getWorkspaceFolder(this.notebook.uri) !== undefined
-            ) {
-                let currentFolder = path.dirname(vscode.Uri.parse(this.notebook.uri.toString()).fsPath)
-
-                // We run this loop until we are looking at a folder that is no longer part of the workspace
-                while (
-                    vscode.workspace.getWorkspaceFolder(
-                        vscode.Uri.file(currentFolder)
-                    ) !== undefined
-                ) {
-                    if (await this.containsFriCASEnv(currentFolder)) {
-                        return currentFolder
-                    }
-
-                    currentFolder = path.normalize(path.join(currentFolder, '..'))
-                }
-
-                // We did not find anything in the workspace, so return default
-                return await getAbsEnvPath()
-            } else {
-                // Notebook is not inside the workspace, so just use the default env
-                return await getAbsEnvPath()
-            }
-        }
-    }
-
-    private async getCwdPathForNotebook() {
-        if (this.notebook.isUntitled) {
-            if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-                return vscode.workspace.workspaceFolders[0].uri.fsPath
-            } else {
-                return await this.getAbsEnvPathForNotebook()
-            }
-        }
-
-        if (this.notebook.uri.scheme === 'file') {
-            return path.dirname(this.notebook.uri.fsPath)
-        } else {
-            return await getAbsEnvPath()
-        }
-    }
-
     private async run(token: CancellationToken) {
         try {
-            const connectedPromise = new Subject()
-            const serverListeningPromise = new Subject()
-
-            const pn = generatePipeName(v4(), 'vscfricas-nbk')
-
-            const server = net.createServer((socket) => {
-                this._msgConnection = createMessageConnection(
-                    new StreamMessageReader(socket),
-                    new StreamMessageWriter(socket)
-                )
-
-                this._msgConnection.onNotification(notifyTypeDisplay, ({ items }) => {
-                    this.appendCellOutput(items)
-                })
-
-                this._msgConnection.onNotification(notifyTypeSingleDisplay, ({ kind, data }) => {
-                    this.appendCellOutput([{ mimetype: kind, data }])
-                })
-
-                this._msgConnection.onNotification(
-                    notifyTypeStreamoutput,
-                    ({ name, data }) => {
-                        if (name === 'stdout') {
-                            const execution = this._currentExecutionRequest
-                            if (execution) {
-                                execution.appendOutput([
-                                    new vscode.NotebookCellOutput([
-                                        vscode.NotebookCellOutputItem.stdout(data),
-                                    ]),
-                                ])
-                            }
-                        } else if (name === 'stderr') {
-                            const execution = this._currentExecutionRequest
-                            if (execution) {
-                                execution.appendOutput([
-                                    new vscode.NotebookCellOutput([
-                                        vscode.NotebookCellOutputItem.stderr(data),
-                                    ]),
-                                ])
-                            }
-                        } else {
-                            throw new Error('Unknown stream type.')
-                        }
-                    }
-                )
-
-                this._msgConnection.listen()
-
-                this._onConnected.fire(null)
-
-                connectedPromise.notify()
-            })
-
-            server.listen(pn, () => {
-                serverListeningPromise.notify()
-            })
-
-            this.outputChannel.appendLine(`Pre 'await serverListeningPromise.wait()'`)
-            await serverListeningPromise.wait()
-            this.outputChannel.appendLine(`Post 'await serverListeningPromise.wait()'`)
-
-            const pkgenvpath = await this.getAbsEnvPathForNotebook()
-            this.outputChannel.appendLine(`Post 'const pkgenvpath = await this.getAbsEnvPathForNotebook()'`)
-            const cwdPath = await this.getCwdPathForNotebook()
-            this.outputChannel.appendLine(`Post 'const cwdPath = await this.getCwdPathForNotebook()'`)
-
-            //const nthreads = inferFriCASNumThreads()
-
-            const args = [
-          //      '--color=yes',
-                `--project=${pkgenvpath}`,
-          //      '--history-file=no',
-            ]
-
-            const env = {
-                ...process.env
-            }
-/*
-            if (nthreads === 'auto') {
-                args.push('--threads=auto')
-            } else {
-                env['FRICAS_NUM_THREADS'] = nthreads
-            }*/
-
-            this.outputChannel.appendLine(`Now starting the kernel process from the extension with '${this.fricasExecutable.file}', '${args}'.`)
-
-            this._kernelProcess = spawn(
-                this.fricasExecutable.file,
-                [
-                    ...this.fricasExecutable.args,
-                    ...args,
-                    path.join(this.extensionPath, 'scripts', 'notebook', 'notebook.input'),
-                    pn,
-                    //getCrashReportingPipename(),
-                ],
-                {
-                    env,
-                    cwd: cwdPath
-                }
-            )
-
-            this.outputChannel.appendLine('Successfully started the kernel process from the extension.')
-
-            const outputChannel = this.outputChannel
-
-            this._kernelProcess.stdout.on('data', function (data) {
-                outputChannel.append(String(data))
-            })
-            this._kernelProcess.stderr.on('data', function (data) {
-                outputChannel.append(String(data))
-            })
-            const tokenSource = this._tokenSource
-            const processExecutionRequests = this._processExecutionRequests
-
-            this._kernelProcess.on('close', async (code) => {
-                tokenSource.cancel()
-                processExecutionRequests.notify()
-
-                this._onCellRunFinished.fire()
-                this._onStopped.fire(undefined)
-                outputChannel.appendLine(`Kernel closed with ${code}.`)
-                this._kernelProcess = undefined
-
-                this.dispose()
-            })
-
-            this.outputChannel.appendLine(`Pre 'await connectedPromise.wait()'`)
-            await connectedPromise.wait()
-            this.outputChannel.appendLine(`Post 'await connectedPromise.wait()'`)
-
+            this.outputChannel.appendLine('FriCAS Notebook Kernel initialized.')
+            this._onConnected.fire(null)
             await this.messageLoop(token)
-
             this._onStopped.fire(undefined)
-
-            this.dispose()
-        }
-        catch (err) {
-            throw (err)
+        } catch (err) {
+            this.outputChannel.appendLine(`FriCAS Notebook Kernel error: ${err}`)
+            this._onStopped.fire(undefined)
         }
     }
 
     public async stop() {
-        if (this._kernelProcess) {
-            this._kernelProcess.kill()
-            this._kernelProcess = undefined
-        }
+        this._tokenSource.cancel()
+        this._processExecutionRequests.notify()
+        this._onStopped.fire(undefined)
     }
 
     public async restart() {
@@ -406,6 +216,10 @@ export class FriCASKernel {
     }
 
     public async interrupt() {
-        this._kernelProcess?.kill('SIGINT')
+        try {
+            await vscode.commands.executeCommand('language-fricas.interrupt')
+        } catch (err) {
+            console.error('Interrupt error:', err)
+        }
     }
 }

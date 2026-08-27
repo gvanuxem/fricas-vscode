@@ -67,6 +67,7 @@ The extension currently provides:
 * ``done`` syntax highlighting
 * ``work in progress`` FriCAS specific commands
 * ``done`` integrated FriCAS REPL (require FriCAS with MCP support)
+* ``done`` Jupyter Notebooks support (require FriCAS with MCP support)
 * ``done`` code completion
 * ``almost done`` documentation navigation/search
 * ``done`` hover help (require FriCAS with MCP support)
