@@ -7,6 +7,11 @@ This [VS Code](https://code.visualstudio.com) like extension provides support fo
 
 ![Capture1](https://github.com/user-attachments/assets/6bf2fd53-3b26-403d-8ce7-bae964ac98c0)
 
+## Graphics with Jupyter
+
+![Capture2](https://github.com/user-attachments/assets/fe5b5ca3-eea4-49c2-b797-3ee341dd57e8)
+
+
 ## Getting started
 
 ### Building the extension
