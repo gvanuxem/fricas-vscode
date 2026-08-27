@@ -2,10 +2,11 @@
 
 [![FriCAS VS Code extension](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml/badge.svg)](https://github.com/gvanuxem/fricas-vscode/actions/workflows/main.yml)
 
-This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google®  Antigravity](https://antigravity.google/)
+This [VS Code](https://code.visualstudio.com) like extension provides support for the [FriCAS Computer Algebra System](https://fricas.github.io/). This extension is also compatible with [Google®  Antigravity IDE](https://antigravity.google/)
 
 
 ![Capture1](https://github.com/user-attachments/assets/6bf2fd53-3b26-403d-8ce7-bae964ac98c0)
+
 
 ## Graphics with Jupyter
 
