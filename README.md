@@ -7,9 +7,6 @@ This [VS Code](https://code.visualstudio.com) like extension provides support fo
 
 ![Capture1](https://github.com/user-attachments/assets/6bf2fd53-3b26-403d-8ce7-bae964ac98c0)
 
-
-⚠️ WARNING: This extension is under active development! ⚠️
-
 ## Getting started
 
 ### Building the extension
