@@ -70,10 +70,10 @@ The extension currently provides:
 * ``done`` integrated FriCAS REPL (require FriCAS with MCP support)
 * ``done`` Jupyter Notebooks support (require FriCAS with MCP support and [jfricas](https://github.com/fricas/jfricas))
 * ``done`` code completion
-* ``almost done`` documentation navigation/search
+* ``done`` documentation navigation/search
 * ``done`` hover help (require FriCAS with MCP support)
-* ``planned`` code navigation
-* ``almost done`` integrated plots (require jlFriCAS with MCP support)
+* ``done`` code navigation
+* ``done`` integrated plots (require jlFriCAS with MCP support)
 
 
 ## Questions, Feature requests and contributions
