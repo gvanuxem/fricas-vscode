@@ -8,7 +8,7 @@ This [VS Code](https://code.visualstudio.com) like extension provides support fo
 ![Capture1](https://github.com/user-attachments/assets/6bf2fd53-3b26-403d-8ce7-bae964ac98c0)
 
 
-## Graphics with Jupyter
+## Jupyter Notebooks support
 
 ![Capture2](https://github.com/user-attachments/assets/fe5b5ca3-eea4-49c2-b797-3ee341dd57e8)
 
@@ -69,10 +69,10 @@ The extension currently provides:
 * ``work in progress`` FriCAS specific commands
 * ``done`` integrated FriCAS REPL (require FriCAS with MCP support)
 * ``done`` Jupyter Notebooks support (require FriCAS with MCP support and [jfricas](https://github.com/fricas/jfricas))
-* ``done`` code completion
+* ``done`` basic code completion
 * ``done`` documentation navigation/search
 * ``done`` hover help (require FriCAS with MCP support)
-* ``done`` code navigation
+* ``done`` basic code navigation
 * ``done`` integrated plots (require jlFriCAS with MCP support)
 
 
