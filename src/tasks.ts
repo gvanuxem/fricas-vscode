@@ -1,11 +1,10 @@
 import * as fs from 'async-file'
 import * as path from 'path'
 import * as vscode from 'vscode'
-import * as spadpkgenv from './spadpkgenv'
 import { FriCASExecutablesFeature } from './fricasexepath'
 
 class FriCASTaskProvider {
-    constructor(private context: vscode.ExtensionContext, private fricasExecutablesFeature: FriCASExecutablesFeature) { }
+    constructor(private fricasExecutablesFeature: FriCASExecutablesFeature) { }
 
     async provideTasks() {
         const emptyTasks: vscode.Task[] = []
@@ -32,211 +31,74 @@ class FriCASTaskProvider {
         const rootPath = folder.uri.fsPath
 
         try {
-            //const nthreads = inferFriCASNumThreads()
             const result: vscode.Task[] = []
-
             const fricasExecutable = await this.fricasExecutablesFeature.getActiveFriCASExecutableAsync()
-            const pkgenvpath = await spadpkgenv.getAbsEnvPath()
-            /*
-            if (await fs.exists(path.join(rootPath, 'test', 'runtests.jl'))) {
-                const jlargs = [
-                    ...fricasExecutable.args,
-                    '--color=yes',
-                    `--project=${pkgenvpath}`,
-                    '-e',
-                    `using Pkg; Pkg.test("${folder.name}")`,
-                ]
+            if (!fricasExecutable) {
+                return emptyTasks
+            }
 
-                const env = {}
+            // Check for test.input or test/test.input
+            const testInputPath = (await fs.exists(path.join(rootPath, 'test', 'test.input'))) ?
+                path.join(rootPath, 'test', 'test.input') :
+                (await fs.exists(path.join(rootPath, 'test.input'))) ? path.join(rootPath, 'test.input') : undefined
 
-                if (nthreads === 'auto') {
-                    jlargs.splice(1, 0, '--threads=auto')
-                } else {
-                    env['FRICAS_NUM_THREADS'] = nthreads
-                }
+            if (testInputPath) {
                 const testTask = new vscode.Task(
                     {
                         type: 'fricas',
                         command: 'test'
                     },
                     folder,
-                    `Run tests`,
+                    'Run FriCAS tests',
                     'FriCAS',
                     new vscode.ProcessExecution(
                         fricasExecutable.file,
-                        jlargs,
-                        {
-                            env: env
-                        }
+                        [
+                            ...fricasExecutable.args,
+                            '-eval',
+                            `)read ${testInputPath}`
+                        ],
+                        { cwd: rootPath }
                     ),
                     ''
                 )
                 testTask.group = vscode.TaskGroup.Test
-                testTask.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
+                testTask.presentationOptions = { echo: true, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
                 result.push(testTask)
-
-                const jlargs2 = [
-                    ...fricasExecutable.args,
-                    '--color=yes',
-                    `--project=${pkgenvpath}`,
-                    path.join(
-                        this.context.extensionPath,
-                        'scripts',
-                        'tasks',
-                        'task_test.jl'
-                    ),
-                    folder.uri.fsPath,
-                    vscode.workspace
-                        .getConfiguration('fricas')
-                        .get<boolean>('deleteFriCASCovFiles') ?? false
-                        ? 'true'
-                        : 'false',
-                ]
-
-                if (nthreads === 'auto') {
-                    jlargs.splice(1, 0, '--threads=auto')
-                }
-
-                const testTaskWithCoverage = new vscode.Task(
-                    {
-                        type: 'fricas',
-                        command: 'testcoverage'
-                    },
-                    folder,
-                    `Run tests with coverage`,
-                    'FriCAS',
-                    new vscode.ProcessExecution(
-                        fricasExecutable.file,
-                        jlargs2,
-                        {
-                            env: env
-                        }
-                    ),
-                    ''
-                )
-                testTaskWithCoverage.group = vscode.TaskGroup.Test
-                testTaskWithCoverage.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
-                result.push(testTaskWithCoverage)
-
-                // const livetestTask = new vscode.Task({ type: 'fricas', command: 'livetest' }, folder, `Run tests live (experimental)`, 'fricas', new vscode.ProcessExecution(jlexepath, ['--color=yes', `--project=${pkgenvpath}`, path.join(this.context.extensionPath, 'scripts', 'tasks', 'task_liveunittesting.jl'), folder.name, vscode.workspace.getConfiguration('fricas').get('liveTestFile')], { env: { FRICAS_NUM_THREADS: inferFriCASNumThreads() } }), '')
-                // livetestTask.group = vscode.TaskGroup.Test
-                // livetestTask.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
-                // result.push(livetestTask)
-
             }
 
-            if (fricasExecutable.getVersion().compare('1.6.0') >= 0) {
-                const buildFriCASSysimage = new vscode.Task(
-                    {
-                        type: 'fricas',
-                        command: 'fricassysimagebuild',
-                    },
-                    folder,
-                    `Build custom sysimage for current environment (experimental)`,
-                    'FriCAS',
-                    new vscode.ProcessExecution(fricasExecutable.file, [
-                        ...fricasExecutable.args,
-                        '--color=yes',
-                        '--startup-file=no',
-                        '--history-file=no',
-                        path.join(
-                            this.context.extensionPath,
-                            'scripts',
-                            'tasks',
-                            'task_compileenv.jl'
-                        ),
-                        pkgenvpath,
-                    ]),
-                    ''
-                )
-                buildFriCASSysimage.group = vscode.TaskGroup.Build
-                buildFriCASSysimage.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
-                result.push(buildFriCASSysimage)
-            }*/
+            // Check for build.input or Makefile
+            const buildInputPath = (await fs.exists(path.join(rootPath, 'build.input'))) ?
+                path.join(rootPath, 'build.input') :
+                (await fs.exists(path.join(rootPath, 'deps', 'build.input'))) ? path.join(rootPath, 'deps', 'build.input') : undefined
 
-            if (await fs.exists(path.join(rootPath, 'deps', 'build.input'))) {
+            if (buildInputPath) {
                 const buildTask = new vscode.Task(
                     {
                         type: 'fricas',
                         command: 'build'
                     },
                     folder,
-                    `Run build`,
+                    'Run FriCAS build',
                     'FriCAS',
                     new vscode.ProcessExecution(
                         fricasExecutable.file,
                         [
                             ...fricasExecutable.args,
-                            '--color=yes',
-                            `--project=${pkgenvpath}`,
-                            '-e',
-                            `using Pkg; Pkg.build("${folder.name}")`
-                        ])
-                    ,
-                    ''
-                )
-                buildTask.group = vscode.TaskGroup.Build
-                buildTask.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
-                result.push(buildTask)
-            }
-
-            if (await fs.exists(path.join(rootPath, 'benchmark', 'benchmarks.input'))) {
-                const benchmarkTask = new vscode.Task(
-                    {
-                        type: 'fricas',
-                        command: 'benchmark'
-                    },
-                    folder,
-                    `Run benchmark`,
-                    'FriCAS',
-                    new vscode.ProcessExecution(
-                        fricasExecutable.file,
-                        [
-                            ...fricasExecutable.args,
-                            '--color=yes',
-                            `--project=${pkgenvpath}`,
-                            '-e',
-                            'using PkgBenchmark; benchmarkpkg(Base.ARGS[1], resultfile="benchmark/results.json")',
-                            folder.name
-                        ]
-                    ),
-                    ''
-                )
-                benchmarkTask.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
-                result.push(benchmarkTask)
-            }
-
-            if (await fs.exists(path.join(rootPath, 'docs', 'make.input'))) {
-                const buildTask = new vscode.Task(
-                    {
-                        type: 'fricas',
-                        command: 'docbuild'
-                    },
-                    folder,
-                    `Build documentation`,
-                    'FriCAS',
-                    new vscode.ProcessExecution(
-                        fricasExecutable.file,
-                        [
-                            ...fricasExecutable.args,
-                            `--project=${pkgenvpath}`,
-                            '--color=yes',
-                            path.join(this.context.extensionPath, 'scripts', 'tasks', 'task_docbuild.input'),
-                            path.join(rootPath, 'docs', 'make.input'),
-                            path.join(rootPath, 'docs', 'build', 'index.html')
+                            '-eval',
+                            `)read ${buildInputPath}`
                         ],
                         { cwd: rootPath }
                     ),
                     ''
                 )
                 buildTask.group = vscode.TaskGroup.Build
-                buildTask.presentationOptions = { echo: false, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
+                buildTask.presentationOptions = { echo: true, focus: false, panel: vscode.TaskPanelKind.Dedicated, clear: true }
                 result.push(buildTask)
             }
 
             return result
         } catch (e) {
-            // TODO Let things crash and go to crash reporting
             return emptyTasks
         }
     }
@@ -247,5 +109,5 @@ class FriCASTaskProvider {
 }
 
 export function activate(context: vscode.ExtensionContext, fricasExecutablesFeature: FriCASExecutablesFeature) {
-    vscode.tasks.registerTaskProvider('fricas', new FriCASTaskProvider(context, fricasExecutablesFeature))
+    vscode.tasks.registerTaskProvider('fricas', new FriCASTaskProvider(fricasExecutablesFeature))
 }

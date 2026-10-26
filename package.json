@@ -2,7 +2,7 @@
     "name": "language-fricas",
     "displayName": "FriCAS",
     "description": "FriCAS Language Support",
-    "version": "0.0.3-alpha",
+    "version": "0.1.0-alpha",
     "preview": true,
     "publisher": "gvanuxem",
     "engines": {
@@ -35,12 +35,27 @@
         "languages": [
             {
                 "id": "fricas",
+                "aliases": [
+                    "FriCAS",
+                    "fricas",
+                    "SPAD",
+                    "spad"
+                ],
                 "configuration": "./language-configuration.json",
                 "extensions": [
                     ".spad",
                     ".input",
                     ".as",
                     ".boot"
+                ]
+            },
+            {
+                "id": "fricasmarkdown",
+                "aliases": [
+                    "FriCAS Markdown"
+                ],
+                "extensions": [
+                    ".fmd"
                 ]
             }
         ],
@@ -49,6 +64,18 @@
                 "language": "fricas",
                 "scopeName": "source.fricas",
                 "path": "./syntaxes/fricas.vscode.json"
+            },
+            {
+                "scopeName": "markdown.fricas.codeblock",
+                "path": "./syntaxes/fricascodeblock.json",
+                "injectTo": [
+                    "text.html.markdown"
+                ]
+            },
+            {
+                "language": "fricasmarkdown",
+                "scopeName": "text.html.markdown.fricas",
+                "path": "./syntaxes/fricasmarkdown.json"
             }
         ],
         "commands": [
@@ -252,6 +279,21 @@
                 "command": "language-fricas.startDocumentation",
                 "title": "Show FriCAS Library Documentation",
                 "category": "Fricas"
+            },
+            {
+                "command": "language-fricas.compileSpadFile",
+                "title": "FriCAS: Compile SPAD File",
+                "icon": "$(gear)"
+            },
+            {
+                "command": "language-fricas.compileBootFile",
+                "title": "FriCAS: Compile and Load Boot File",
+                "icon": "$(gear)"
+            },
+            {
+                "command": "language-fricas.compileLispFile",
+                "title": "FriCAS: Compile and Load Lisp File",
+                "icon": "$(gear)"
             }
         ],
         "menus": {
@@ -260,6 +302,21 @@
                     "command": "language-fricas.newFriCASFile",
                     "group": "fricas",
                     "when": "fricas.isActive"
+                },
+                {
+                    "command": "language-fricas.compileSpadFile",
+                    "group": "fricas@1",
+                    "when": "resourceExtname == .spad"
+                },
+                {
+                    "command": "language-fricas.compileBootFile",
+                    "group": "fricas@1",
+                    "when": "resourceExtname == .boot"
+                },
+                {
+                    "command": "language-fricas.compileLispFile",
+                    "group": "fricas@1",
+                    "when": "resourceExtname == .lisp"
                 },
                 {
                     "command": "language-fricas.executeFile",
@@ -483,36 +540,36 @@
             },
             {
                 "command": "language-fricas.newFriCASFile",
-                "key": "Alt+J Alt+N"
+                "key": "Alt+F Alt+N"
             },
             {
                 "command": "language-fricas.startREPL",
-                "key": "Alt+J Alt+O"
+                "key": "Alt+F Alt+O"
             },
             {
                 "command": "language-fricas.stopREPL",
-                "key": "Alt+J Alt+K"
+                "key": "Alt+F Alt+K"
             },
             {
                 "command": "language-fricas.restartREPL",
-                "key": "Alt+J Alt+R"
+                "key": "Alt+F Alt+R"
             },
             {
                 "command": "language-fricas.changeCurrentEnvironment",
-                "key": "Alt+J Alt+E",
+                "key": "Alt+F Alt+E",
                 "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
             },
             {
                 "command": "language-fricas.show-documentation",
-                "key": "Alt+J Alt+D",
+                "key": "Alt+F Alt+D",
                 "when": "editorTextFocus && activeEditor != workbench.editor.notebook && editorLangId in fricas.supportedLanguageIds"
             },
             {
-                "key": "Alt+J Alt+P",
+                "key": "Alt+F Alt+P",
                 "command": "language-fricas.show-plotpane"
             },
             {
-                "key": "Alt+J Alt+W",
+                "key": "Alt+F Alt+W",
                 "command": "FRICASREPLVariables.focus"
             },
             {
@@ -557,10 +614,12 @@
             },
             {
                 "command": "language-fricas.copy-plot",
+                "key": "ctrl+c",
                 "when": "fricas.plotpaneFocus"
             },
             {
                 "command": "language-fricas.save-plot",
+                "key": "ctrl+s",
                 "when": "fricas.plotpaneFocus"
             },
             {
@@ -722,18 +781,21 @@
                     "type": "tree",
                     "id": "FRICASREPLVariables",
                     "name": "Workspace",
+                    "icon": "images/fricas-dots-outline.svg",
                     "when": "fricas.isActive"
                 },
                 {
                     "type": "webview",
                     "id": "fricas-documentation",
                     "name": "Documentation",
+                    "icon": "images/fricas-dots-outline.svg",
                     "when": "fricas.isActive"
                 },
                 {
                     "type": "webview",
                     "id": "fricas-plot-navigator",
                     "name": "Plot Navigator",
+                    "icon": "images/fricas-dots-outline.svg",
                     "when": "fricas.isActive"
                 }
             ]
@@ -791,8 +853,8 @@
         "compile-dry-run": "tsc -p ./ --noEmit --pretty",
         "watch": "tsc -watch -p ./",
         "test": "node ./out/test/runTest.js",
-        "initialsetup": "npm i && git submodule init && git submodule update",
-        "update2latest": "git pull && git submodule init && git submodule update && npm install --no-save && npm run compile && npm run webpack",
+        "initialsetup": "npm install",
+        "update2latest": "git pull && npm install --no-save && npm run compile && npm run webpack",
         "package": "vsce package",
         "updatedeps": "npm run compile && node ./out/scripts/updateDeps.js",
         "tagminor": "npm version minor && git push --tags && git push",

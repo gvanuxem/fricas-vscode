@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import * as vscode from 'vscode'
 
 export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     public provideDocumentSymbols(
@@ -7,7 +7,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
         {
         return new Promise((resolve, reject) =>
         {
-            const symbols: vscode.DocumentSymbol[] = [];
+            const symbols: vscode.DocumentSymbol[] = []
             const nodes = [symbols]
             let inside_modules = false
             let inside_function = false
@@ -23,29 +23,34 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     // "append"/[[f for j in 1..ncols] for i in 1..nrows] where f ==
                     if (line.text.startsWith(')package')) {
                         const tokens = line.text.split(/\s+/g)
+                        const name = tokens[1] || 'package'
                         const user_symbol = new vscode.DocumentSymbol(
-                            tokens[1],
+                            name,
                             tokens[0],
                             vscode.SymbolKind.Package,
                             line.range, line.range)
                         nodes[nodes.length-1].push(user_symbol)
                         nodes.push(user_symbol.children)
                     }
-                    if (line.text.startsWith(')abbrev')) {
+                    else if (line.text.startsWith(')abbrev')) {
                         const tokens = line.text.split(/\s+/g)
-                        if (inside_function) {
+                        if (inside_function && nodes.length > 1) {
                             nodes.pop()
                             inside_function = false
                         }
-                        if (inside_modules) {
+                        if (inside_modules && nodes.length > 1) {
                             nodes.pop()
-                        }else{
+                        } else {
                             inside_modules = true
                         }
+                        const name = tokens[3] || tokens[2] || 'Constructor'
+                        const kindStr = tokens[1] || 'domain'
+                        const symKind = kindStr === 'category' ? vscode.SymbolKind.Interface :
+                                        kindStr === 'package' ? vscode.SymbolKind.Package : vscode.SymbolKind.Class
                         const user_symbol = new vscode.DocumentSymbol(
-                            tokens[3],
-                            tokens[1],
-                            vscode.SymbolKind.Class,
+                            name,
+                            kindStr,
+                            symKind,
                             line.range, line.range)
                         nodes[nodes.length-1].push(user_symbol)
                         nodes.push(user_symbol.children)
@@ -53,7 +58,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     else if (line.text.match(/^\+\+\s[a-zA-Z][a-zA-Z\s]+:/)) {
                         const tokens = line.text.split(/:/g)
                         const marker_symbol = new vscode.DocumentSymbol(
-                            tokens[0],
+                            tokens[0].trim(),
                             'Documentation',
                             symbolkind_doc,
                             line.range, line.range)
@@ -62,7 +67,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     else if (line.text.match(/\s+\w+\s*.*==>/g)) {
                         const tokens = line.text.split(/==>/g)
                         const marker_symbol = new vscode.DocumentSymbol(
-                            tokens[0],
+                            tokens[0].trim(),
                             'Macro',
                             vscode.SymbolKind.Constant,
                             line.range, line.range)
@@ -70,11 +75,11 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     }
                     else if (line.text.match(/\s*\w[\?!]?.*==/g) && !line.text.match('where')) {
                         const tokens = line.text.split(/==/g)
-                        if (inside_function) {
+                        if (inside_function && nodes.length > 1) {
                             nodes.pop()
                         }
                         const marker_symbol = new vscode.DocumentSymbol(
-                            tokens[0],
+                            tokens[0].trim(),
                             'Definition',
                             vscode.SymbolKind.Function,
                             line.range, line.range)
@@ -85,11 +90,11 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     else if (line.text.match(/\s+\w+.*[-*+\/<>=^].*==/g) ||
                                 line.text.match(/\s+-.*==/g)) {
                         const tokens = line.text.split(/==/g)
-                        if (inside_function) {
+                        if (inside_function && nodes.length > 1) {
                             nodes.pop()
                         }
                         const marker_symbol = new vscode.DocumentSymbol(
-                            tokens[0],
+                            tokens[0].trim(),
                             'Definition',
                             vscode.SymbolKind.Operator,
                             line.range, line.range)
@@ -98,9 +103,10 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                         inside_function = true
                     }
                     else if (line.text.match(/\s+\w+\s*.*:=/g)) {
-                        const tokens = line.text.split(/\s+/g)
+                        const tokens = line.text.trim().split(/\s*:=/g)
+                        const varName = tokens[0] ? tokens[0].trim() : 'Variable'
                         const cmd_symbol = new vscode.DocumentSymbol(
-                            tokens[1],
+                            varName,
                             'Variable',
                             vscode.SymbolKind.Variable,
                             line.range, line.range)
@@ -116,7 +122,7 @@ export class FriCASDocumentSymbolProvider implements vscode.DocumentSymbolProvid
                     }
                 }
             }
-            resolve(symbols);
-        });
+            resolve(symbols)
+        })
         }
 }

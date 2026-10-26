@@ -163,13 +163,13 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
                     i = j // Advance the index to the end of the sequence
                     
                     if (seq === '\x1b[A') { // Up arrow
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         if (this.historyIndex > 0) {
                             this.historyIndex--
                             this.replaceInput(this.history[this.historyIndex])
                         }
                     } else if (seq === '\x1b[B') { // Down arrow
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         if (this.historyIndex < this.history.length - 1) {
                             this.historyIndex++
                             this.replaceInput(this.history[this.historyIndex])
@@ -178,27 +178,27 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
                             this.replaceInput('')
                         }
                     } else if (seq === '\x1b[D') { // Left arrow
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         if (this.cursorIndex > 0) {
                             this.cursorIndex--
                             this.writeEmitter.fire('\x1b[D')
                         }
                     } else if (seq === '\x1b[C') { // Right arrow
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         if (this.cursorIndex < this.inputBuffer.length) {
                             this.cursorIndex++
                             this.writeEmitter.fire('\x1b[C')
                         }
                     } else if (seq === '\x1b[H' || seq === '\x1b[1~') { // Home key
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         this.cursorIndex = 0
                         this.redrawInput()
                     } else if (seq === '\x1b[F' || seq === '\x1b[4~') { // End key
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         this.cursorIndex = this.inputBuffer.length
                         this.redrawInput()
                     } else if (seq === '\x1b[3~') { // Delete key
-                        if (needsRedraw) { this.redrawInput(); needsRedraw = false; }
+                        if (needsRedraw) { this.redrawInput(); needsRedraw = false }
                         if (this.cursorIndex < this.inputBuffer.length) {
                             this.inputBuffer = this.inputBuffer.slice(0, this.cursorIndex) + this.inputBuffer.slice(this.cursorIndex + 1)
                             this.redrawInput()
@@ -285,6 +285,12 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
     }
 }
 
+export async function echoREPLEvaluation(code: string, output: string, isError = false) {
+    if (g_pty) {
+        await g_pty.ready
+        g_pty.echoEvaluation(code, output, isError)
+    }
+}
 
 function startREPLCommand() {
     startREPL(false, true)

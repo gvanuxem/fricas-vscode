@@ -61,29 +61,14 @@ export async function switchEnvToPath(envpath: string, notifyLS: boolean) {
 async function changeFriCASEnvironment() {
 
     const optionsEnv: vscode.QuickPickOptions = {
-        placeHolder: 'Select environment'
+        placeHolder: 'Select FriCAS working environment / directory'
     }
 
-    const projectNames = ['FriCASProject.toml', 'Project.toml']
-    const homeDir = os.homedir()
-
-    const envFolders = [{ label: '(pick a folder)', description: '' }]
+    const envFolders: { label: string, description: string }[] = [{ label: '$(folder) (pick a folder)', description: '' }]
 
     if (vscode.workspace.workspaceFolders) {
         for (const workspaceFolder of vscode.workspace.workspaceFolders) {
-            let curPath = workspaceFolder.uri.fsPath.toString()
-            while (true) {
-                const oldPath = curPath
-                for (const projectName of projectNames) {
-                    if (await fs.exists(path.join(curPath, projectName))) {
-                        envFolders.push({ label: path.basename(curPath), description: curPath })
-                        break
-                    }
-                }
-                if (curPath === homeDir) { break }
-                curPath = path.dirname(curPath)
-                if (oldPath === curPath) { break }
-            }
+            envFolders.push({ label: `$(root-folder) ${workspaceFolder.name}`, description: workspaceFolder.uri.fsPath })
         }
     }
 
@@ -92,17 +77,9 @@ async function changeFriCASEnvironment() {
     if (resultPackage !== undefined) {
         if (resultPackage.description === '') {
             const resultFolder = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true })
-            // Is this actually an environment?
-            if (resultFolder !== undefined) {
-                const envPathUri = resultFolder[0].toString()
-                const envPath = vscode.Uri.parse(envPathUri).fsPath
-                const isThisAEnv = await fs.exists(path.join(envPath, 'Project.toml'))
-                if (isThisAEnv) {
-                    switchEnvToPath(envPath, true)
-                }
-                else {
-                    vscode.window.showErrorMessage('The selected path is not a fricas environment.')
-                }
+            if (resultFolder && resultFolder.length > 0) {
+                const envPath = resultFolder[0].fsPath
+                switchEnvToPath(envPath, true)
             }
         }
         else {
@@ -113,28 +90,11 @@ async function changeFriCASEnvironment() {
 
 async function getDefaultEnvPath() {
     if (g_path_of_default_environment === null) {
-        if (vscode.workspace.workspaceFolders) {
-            if (vscode.workspace.workspaceFolders.length === 1) {
-                const projectFilePath1 = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'FriCASProject.toml')
-                const manifestFilePath1 = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'FriCASManifest.toml')
-                const projectFilePath2 = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'Project.toml')
-                const manifestFilePath2 = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, 'Manifest.toml')
-                if (await fs.exists(projectFilePath1) && await fs.exists(manifestFilePath1)) {
-                    return vscode.workspace.workspaceFolders[0].uri.fsPath
-                }
-                else if (await fs.exists(projectFilePath2) && await fs.exists(manifestFilePath2)) {
-                    return vscode.workspace.workspaceFolders[0].uri.fsPath
-                }
-            }
+        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            g_path_of_default_environment = vscode.workspace.workspaceFolders[0].uri.fsPath
+        } else {
+            g_path_of_default_environment = os.homedir()
         }
-
-        //const fricasExecutable = await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()
-        /*const res = '/home/greg'/*await execFile(
-            fricasExecutable.file,
-            [
-                '-eval', 'using Pkg; println(dirname(Pkg.Types.Context().env.project_file))'
-            ])*/
-        g_path_of_default_environment = '/home/greg' //res.stdout.toString().trim()
     }
     return g_path_of_default_environment
 }

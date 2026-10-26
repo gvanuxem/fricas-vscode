@@ -23,9 +23,15 @@ export class FriCASExecutable {
     }
 
     public async getBaseRootFolderPathAsync() {
-
         if (!this._baseRootFolderPath) {
-            this._baseRootFolderPath = path.normalize(process.env.FRICAS)
+            const fricasEnv = process.env.FRICAS
+            if (fricasEnv && fricasEnv.trim().length > 0) {
+                this._baseRootFolderPath = path.normalize(fricasEnv)
+            } else if (this.file) {
+                this._baseRootFolderPath = path.dirname(path.dirname(this.file))
+            } else {
+                this._baseRootFolderPath = os.homedir()
+            }
         }
 
         return this._baseRootFolderPath
@@ -109,78 +115,37 @@ export class FriCASExecutablesFeature {
 
     getSearchPaths(): string[] {
         const homedir = os.homedir()
-        let pathsToSearch = []
+        let pathsToSearch: string[] = []
         if (process.platform === 'win32') {
-            pathsToSearch = ['fricas',
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.9.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.9.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.5', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.4', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.3', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.8.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.7.3', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.7.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.7.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.7.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.8', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.7', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.6', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.5', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.4', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.3', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.6.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS 1.5.4', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS 1.5.3', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS 1.5.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS 1.5.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS 1.5.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS', 'FriCAS-1.4.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS', 'FriCAS-1.4.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS', 'FriCAS-1.4.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.3.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.3.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.2.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.1.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.1.0', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.5', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.4', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.3', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.2', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.1', 'bin', 'fricas.exe'),
-                path.join(homedir, 'AppData', 'Local', 'FriCAS-1.0.0', 'bin', 'fricas.exe')
+            pathsToSearch = [
+                'fricas',
+                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS', 'bin', 'fricas.exe'),
+                'C:\\fricas\\bin\\fricas.exe',
+                'C:\\Program Files\\FriCAS\\bin\\fricas.exe',
+                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.4.0', 'bin', 'fricas.exe'),
+                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.3.11', 'bin', 'fricas.exe'),
+                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.3.10', 'bin', 'fricas.exe'),
+                path.join(homedir, 'AppData', 'Local', 'Programs', 'FriCAS-1.3.9', 'bin', 'fricas.exe')
             ]
         }
         else if (process.platform === 'darwin') {
-            pathsToSearch = ['fricas',
-                path.join(homedir, 'Applications', 'FriCAS-1.9.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.9.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.8.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.8.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.7.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.7.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.6.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.6.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.5.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.5.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.4.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.4.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.3.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.3.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.2.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.2.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.1.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.1.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join(homedir, 'Applications', 'FriCAS-1.0.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
-                path.join('/', 'Applications', 'FriCAS-1.0.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas')]
+            pathsToSearch = [
+                'fricas',
+                '/usr/local/bin/fricas',
+                '/opt/homebrew/bin/fricas',
+                path.join(homedir, '.local', 'bin', 'fricas'),
+                path.join(homedir, 'Applications', 'FriCAS.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas'),
+                path.join('/', 'Applications', 'FriCAS.app', 'Contents', 'Resources', 'fricas', 'bin', 'fricas')
+            ]
         }
         else {
-            pathsToSearch = ['fricas',
-                path.join(homedir, '.local', 'bin', 'fricas'),
-                path.join('/', 'usr', 'local', 'bin', 'fricas')]
+            pathsToSearch = [
+                'fricas',
+                '/usr/local/bin/fricas',
+                '/usr/bin/fricas',
+                '/opt/fricas/bin/fricas',
+                path.join(homedir, '.local', 'bin', 'fricas')
+            ]
         }
         return pathsToSearch
     }
@@ -237,7 +202,7 @@ export class FriCASExecutablesFeature {
     }
 
     getExecutablePath() {
-        const jlpath = vscode.workspace.getConfiguration('fricas').get<string>('executablePath')
-        return jlpath === '' ? '' : jlpath
+        const fricasPath = vscode.workspace.getConfiguration('fricas').get<string>('executablePath')
+        return fricasPath === '' ? '' : fricasPath
     }
 }

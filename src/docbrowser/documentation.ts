@@ -175,14 +175,30 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             )
             if (lsResult) { return this.cleanReplDocResult(lsResult) }
 
-            // Try REPL message connection tool: get-documentation
+            // Try REPL message connection tool: get-documentation / list-constructors
             if (g_connection) {
+                // If it's a pattern, query list-constructors directly
+                if (word.includes('*') || word.includes('?')) {
+                    try {
+                        const listRes = await g_connection.sendRequest(requestTypeCallTool, {
+                            name: 'list-constructors',
+                            arguments: { pattern: word }
+                        })
+                        const listText = listRes?.content?.[0]?.text
+                        if (listText && listText.trim().length > 0) {
+                            return this.formatConstructorList(listText)
+                        }
+                    } catch (err) {
+                        console.debug('list-constructors tool failed', err)
+                    }
+                }
+
                 try {
                     let result = await g_connection.sendRequest(requestTypeCallTool, {
                         name: 'get-documentation',
                         arguments: { name: word, type: 'operation' }
                     })
-                    let replResult = result.content[0].text
+                    let replResult = result?.content?.[0]?.text
                     if (replResult && replResult.trim().length > 0) { return replResult }
 
                     // If not found, try as constructor
@@ -190,10 +206,27 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                         name: 'get-documentation',
                         arguments: { name: word, type: 'constructor' }
                     })
-                    replResult = result.content[0].text
+                    replResult = result?.content?.[0]?.text
                     if (replResult && replResult.trim().length > 0) { return replResult }
                 } catch (err) {
-                    console.error('REPL message Tool call failed, trying direct eval', err)
+                    console.debug('get-documentation tool failed, trying direct eval', err)
+                }
+
+                // If nothing was found, try searching for similar constructors with pattern *word*
+                try {
+                    const listRes = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'list-constructors',
+                        arguments: { pattern: `*${word}*` }
+                    })
+                    const listText = listRes?.content?.[0]?.text
+                    if (listText && listText.trim().length > 0) {
+                        const formatted = this.formatConstructorList(listText)
+                        if (formatted && formatted.trim()) {
+                            return `No exact documentation found for \`${word}\`.\n\n### Related Constructors:\n\n${formatted}`
+                        }
+                    }
+                } catch (err) {
+                    // Ignore pattern search failure
                 }
             }
 
@@ -220,7 +253,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
                         )
                         const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
                         if (listDoc && listDoc !== '[]') {
-                            return `### Matching constructors:\n\n${listDoc}`
+                            return this.formatConstructorList(listDoc)
                         }
                     }
                 } catch (err) {
@@ -260,6 +293,62 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         // Unescape newlines (both actual and literal \n)
         cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\"/g, '"')
         return cleaned
+    }
+
+    public formatConstructorList(rawText: string): string {
+        if (!rawText || !rawText.trim()) {
+            return ''
+        }
+
+        const parseList = (categoryKey: string): string[] => {
+            const re = new RegExp(`${categoryKey}\\s*=\\s*\\[([\\s\\S]*?)\\](?=\\s*,|\\s*\\]|\\s*Type:)`, 'i')
+            const match = rawText.match(re)
+            if (!match || !match[1]) {
+                return []
+            }
+            return match[1]
+                .replace(/\s+/g, ' ')
+                .split(',')
+                .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+                .filter(s => s.length > 0)
+        }
+
+        const categories = parseList('categories')
+        const domains = parseList('domains')
+        const packages = parseList('packages')
+
+        if (categories.length === 0 && domains.length === 0 && packages.length === 0) {
+            const listMatch = rawText.match(/\[([\\s\\S]*?)\]/)
+            if (listMatch && listMatch[1]) {
+                const items = listMatch[1]
+                    .replace(/\s+/g, ' ')
+                    .split(',')
+                    .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
+                    .filter(s => s.length > 0)
+                if (items.length > 0) {
+                    return items
+                        .map(item => `- [\`${item}\`](${constructCommandString('language-fricas.search-word', { searchTerm: item })})`)
+                        .join('\n')
+                }
+            }
+            return rawText
+        }
+
+        const sections: string[] = []
+
+        const formatSection = (title: string, items: string[]) => {
+            if (items.length === 0) { return }
+            const links = items.map(
+                name => `[\`${name}\`](${constructCommandString('language-fricas.search-word', { searchTerm: name })})`
+            )
+            sections.push(`### ${title} (${items.length})\n\n${links.join(' &nbsp;•&nbsp; ')}`)
+        }
+
+        formatSection('Categories', categories)
+        formatSection('Domains', domains)
+        formatSection('Packages', packages)
+
+        return sections.join('\n\n---\n\n')
     }
 
     async showDocumentation() {
@@ -520,7 +609,7 @@ Welcome to the FriCAS documentation pane!
 
 You can search for documentation for domains, categories, packages, and operations by using the search bar above.
 
-Alternatively, place your cursor on a word in the editor and use the **FriCAS: Show Documentation** command (shortcut: \`Alt+J Alt+D\`).
+Alternatively, place your cursor on a word in the editor and use the **FriCAS: Show Documentation** command (shortcut: \`Alt+F Alt+D\`).
 
 ### Useful links:
 * [jlFriCAS Home Page](https://gvanuxem.github.io/jlfricas)
@@ -535,21 +624,22 @@ Alternatively, place your cursor on a word in the editor and use the **FriCAS: S
         if (!word) { return false }
         // FriCAS numeric literals:
         // - Decimal integers: 42
-        // - Floats: 3.14, 0.0, 1.2e3, .5
+        // - Floats: 3.14, 0.0, 1.2e3, 1.e-20, .5
         // - Radix: 16rFF
         // Regex explanation:
         // ((\d+r[0-9a-zA-Z]+)  -> Radix numbers
-        // |(\d+(\.\d*)?([eE][+-]?\d+)?) -> Numbers starting with digits (covers integers and floats)
+        // |(\d+\.\d*([eE][+-]?\d+)?) -> Floats starting with digits (require decimal point)
         // |(\.\d+([eE][+-]?\d+)?)) -> Floats starting with a dot
-        const fricasNumberRegex = /^((\d+r[0-9a-zA-Z]+)|(\d+(\.\d*)?([eE][+-]?\d+)?)|(\.\d+([eE][+-]?\d+)?))$/;
+        // |(\d+)) -> Decimal integers
+        const fricasNumberRegex = /^((\d+r[0-9a-zA-Z]+)|(\d+\.\d*([eE][+-]?\d+)?)|(\.\d+([eE][+-]?\d+)?)|(\d+))$/
 
         if (!fricasNumberRegex.test(word)) {
-            return false;
+            return false
         }
         // Allow '0' and '1' exactly (as decimal integers)
         if (word === '0' || word === '1') {
-            return false;
+            return false
         }
-        return true;
+        return true
     }
 }

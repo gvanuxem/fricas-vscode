@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises'
+import { existsSync } from 'fs'
 import { homedir } from 'os'
 import * as path from 'path'
 import * as vscode from 'vscode'
@@ -184,7 +185,7 @@ class PlotNavigatorProvider implements vscode.WebviewViewProvider {
                 ${this.plotsInfo.map(this.plotToThumbnail).reverse().join('\n')}
             </div>`
         } else {
-            innerHTML = `<p>Use FriCAS to plot and your plots will appear here.</p>`
+            innerHTML = `<p>Use jlFriCAS to plot and your plots will appear here.</p>`
         }
 
         this.setHTML(this.getWebviewHTML(innerHTML))
@@ -243,36 +244,24 @@ function getPlotPaneContent(webview: vscode.Webview) {
         </body>
         </html>`
     } else {
-        const screenShotScript = `<script src="${webview.asWebviewUri(
-            vscode.Uri.file(
-                path.join(
-                    g_context.extensionPath,
-                    'libs',
-                    'html2canvas',
-                    'html2canvas.min.js'
-                )
-            )
-        )}"></script><script src="${webview.asWebviewUri(
-            vscode.Uri.file(
-                path.join(
-                    g_context.extensionPath,
-                    'libs',
-                    'panzoom',
-                    'panzoom.min.js'
-                )
-            )
-        )}"></script><script src="${webview.asWebviewUri(
-            vscode.Uri.file(
-                path.join(
-                    g_context.extensionPath,
-                    'scripts',
-                    'plots',
-                    'main_plot_webview.js'
-                )
-            )
-        )}"></script>`
+        const scripts: string[] = []
+        if (g_context) {
+            const html2canvasPath = path.join(g_context.extensionPath, 'libs', 'html2canvas', 'html2canvas.min.js')
+            const panzoomPath = path.join(g_context.extensionPath, 'libs', 'panzoom', 'panzoom.min.js')
+            const mainPlotPath = path.join(g_context.extensionPath, 'scripts', 'plots', 'main_plot_webview.js')
 
-        return g_plots[g_currentPlotIndex] + screenShotScript + invalidator()
+            if (existsSync(html2canvasPath)) {
+                scripts.push(`<script src="${webview.asWebviewUri(vscode.Uri.file(html2canvasPath))}"></script>`)
+            }
+            if (existsSync(panzoomPath)) {
+                scripts.push(`<script src="${webview.asWebviewUri(vscode.Uri.file(panzoomPath))}"></script>`)
+            }
+            if (existsSync(mainPlotPath)) {
+                scripts.push(`<script src="${webview.asWebviewUri(vscode.Uri.file(mainPlotPath))}"></script>`)
+            }
+        }
+
+        return g_plots[g_currentPlotIndex] + scripts.join('') + invalidator()
     }
 }
 

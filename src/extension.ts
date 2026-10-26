@@ -16,6 +16,7 @@ import { FriCASExecutablesFeature } from './fricasexepath'
 import { FriCASNotebookFeature } from './notebook/notebookFeature'
 import * as smallcommands from './smallcommands'
 import * as tasks from './tasks'
+import * as compiler from './compiler'
 import { registerCommand, setContext } from './utils'
 import { FriCASGlobalDiagnosticOutputFeature } from './globalDiagnosticOutput'
 
@@ -30,8 +31,8 @@ let g_fricasExecutablesFeature: FriCASExecutablesFeature = null
 let g_traceOutputChannel: vscode.OutputChannel = null
 let g_outputChannel: vscode.OutputChannel = null
 
-export const increaseIndentPattern: RegExp = /^(\s*|.*=\s*|.*@\w*\s*)[\w\s]*(?:["'`][^"'`]*["'`])*[\w\s]*\b(if|while|.*\)\s*do|else|else\s+if)\b(?!(?:[^\[]*\].*)$).*$/
-export const decreaseIndentPattern: RegExp = /^\s*(else|else\s+if)\b.*$/
+export const increaseIndentPattern: RegExp = /^((?!--).)*(\b(repeat|where|with|add|then|else|try|finally|catch|except)\b|==|==>|:=|\{|\(|\[)\s*$/
+export const decreaseIndentPattern: RegExp = /^\s*(\b(else|finally|catch|except)\b|[}\]\)]).*$/
 
 export async function activate(context: vscode.ExtensionContext) {
     try {
@@ -62,7 +63,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 { scheme: "file", language: "fricas" },
                 SymbolProvider
             )
-        );
+        )
 
         // Active features from other files
         g_fricasExecutablesFeature = new FriCASExecutablesFeature(context, globalDiagnosticOutputFeature)
@@ -71,6 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
         repl.activate(context, g_fricasExecutablesFeature)
         documentation.activate(context)
         tasks.activate(context, g_fricasExecutablesFeature)
+        compiler.activate(context)
         smallcommands.activate(context)
         spadpkgenv.activate(context, g_fricasExecutablesFeature)
 
@@ -87,7 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         retainContextWhenHidden: true,
                         enableCommandUris: true
                     }
-                );
+                )
 
                 //const onDiskPath = vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html/api/index/html/index.html');
                 //const catGifSrc = panel.webview.asWebviewUri(onDiskPath);
@@ -109,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
                   context.subscriptions
                 );*/
             })
-        );
+        )
 
 
         const workspaceFeature = new WorkspaceFeature(context)
@@ -155,12 +157,12 @@ function getWebviewContent(index: string) {
         scheme: 'https',
         path: '/',
         authority: index //gvanuxem.github.io/jlfricas.documentation/api/
-    };
-    const thisEditorParams = [vscode.Uri.parse(index)];
+    }
+    const thisEditorParams = [vscode.Uri.parse(index)]
     const besideEditorParams = [
         linkUri,
         vscode.ViewColumn.Beside
-    ];
+    ]
     /*
       // See: https://www.eliostruyf.com/command-uri-vscode-webview-open-files-links/
       const fileUri = {
@@ -177,7 +179,7 @@ function getWebviewContent(index: string) {
     return `
   <!DOCTYPE html>
   <head>
-    <title>riCAS Library Documentation</title>
+    <title>FriCAS Library Documentation</title>
   </head>
   <body>
   <h1>FriCAS Documentation</h1>
@@ -195,7 +197,7 @@ function getWebviewContent(index: string) {
         <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}">FriCAS Documentation</a>
   </body>
   </p>
-  </html>`;
+  </html>`
 }
 
 // this method is called when your extension is deactivated
