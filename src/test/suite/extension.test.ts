@@ -3,6 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as ext from '../../extension'
 import { parseDiagnosticLines } from '../../compiler'
+import { continuationRegex, countUnclosedBrackets } from '../../outline'
 
 suite('FriCAS Indentation Rules', () => {
     test('repeat loops', () => {
@@ -142,6 +143,27 @@ suite('FriCAS Numeric Literals Syntax', () => {
     test('radix numbers', () => {
         assert.strictEqual(matchesRadix('16rFF'), true)
         assert.strictEqual(matchesFloat('16rFF'), false)
+    })
+})
+
+suite('FriCAS Outline Line Continuation and Brackets', () => {
+    test('detects underscore continuation lines', () => {
+        assert.strictEqual(continuationRegex.test('    extract_brace(s : String, pos : Integer) : _'), true)
+        assert.strictEqual(continuationRegex.test('    listConstructors : Symbol -> Record(categories: List(Symbol), _  '), true)
+        assert.strictEqual(continuationRegex.test('foo__'), false) // __ is escaped underscore
+        assert.strictEqual(continuationRegex.test('foo___'), true)  // ___ is escaped underscore + unescaped _
+        assert.strictEqual(continuationRegex.test('normal line without underscore'), false)
+    })
+
+    test('counts unclosed brackets and handles strings/comments', () => {
+        assert.strictEqual(countUnclosedBrackets('extract_brace(s : String, pos : Integer) : _'), 0)
+        assert.strictEqual(countUnclosedBrackets('alg_exquo(a : MP, b : MP, lm : LMP, xvars : List OV,'), 1)
+        assert.strictEqual(countUnclosedBrackets('alg_exquo(a : MP, b : MP, lm : LMP, xvars : List OV, zvars : List OV) : Union(MP, "failed") =='), 0)
+        assert.strictEqual(countUnclosedBrackets('msg := "unclosed ( paren in string"'), 0)
+        assert.strictEqual(countUnclosedBrackets('x := 1 -- (comment with open paren'), 0)
+        assert.strictEqual(countUnclosedBrackets('++ docstring with open ( paren'), 0)
+        assert.strictEqual(countUnclosedBrackets('nested [{(brackets)}]'), 0)
+        assert.strictEqual(countUnclosedBrackets('nested [{(open'), 3)
     })
 })
 
