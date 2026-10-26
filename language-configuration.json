@@ -1,7 +1,9 @@
 {
   "$schema": "vscode://schemas/language-configuration",
   "comments": {
-    "lineComment": "--",
+    "lineComment": {
+      "comment": "--"
+    },
     "blockComment": [")if false", ")endif"]
   },
   "brackets": [
