@@ -421,6 +421,10 @@
     "string_escaped_char": {
       "patterns": [
         {
+          "match": "__",
+          "name": "constant.character.escape.fricas"
+        },
+        {
           "match": "_\"",
           "name": "constant.character.escape.fricas"
         }
