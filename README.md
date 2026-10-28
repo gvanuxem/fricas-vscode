@@ -41,7 +41,7 @@ This [VS Code](https://code.visualstudio.com) like extension provides support fo
        and choose ``Install from VSIX...`` You will be able to choose
        the ``language-fricas-*.vsix`` VSIX file. Or in the ``Command  Palette...``
        execute ``Extensions: Install from VSIX...`` and choose the extension.
-    4. Alternatively, you can issue in a VSCode/Antigravity IDE Terminal `code --install-extension language-fricas-*.*.*-alpha.vsix` (resp. `antigravity` instead of `code` for Antigravity) in the directory where you saved the VSIX file.
+    4. Alternatively, you can issue in a VSCode Terminal `code --install-extension language-fricas-*.*.*-alpha.vsix` (resp. `antigravity` instead of `code` for Antigravity) in the directory where you saved the VSIX file.
 
 
 ### Configure the FriCAS extension
