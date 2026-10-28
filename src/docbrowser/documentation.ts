@@ -60,6 +60,26 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         registerCommand('language-fricas.show-documentation-pane', () => provider.showDocumentationPane()),
+        registerCommand('language-fricas.search-documentation', async () => {
+            const editor = vscode.window.activeTextEditor
+            let defaultQuery = ''
+            if (editor && !editor.selection.isEmpty) {
+                defaultQuery = editor.document.getText(editor.selection)
+            } else if (editor) {
+                const wordRange = editor.document.getWordRangeAtPosition(editor.selection.start)
+                if (wordRange) {
+                    defaultQuery = editor.document.getText(wordRange)
+                }
+            }
+            const query = await vscode.window.showInputBox({
+                prompt: 'Search FriCAS documentation by keyword, wildcard, or logical pattern:',
+                placeHolder: 'e.g. determinant, groebner, *matrix* and *eigenvalue*',
+                value: defaultQuery
+            })
+            if (query && query.trim()) {
+                await provider.showDocumentationFromWord(query.trim())
+            }
+        }),
         registerCommand('language-fricas.show-documentation', () => provider.showDocumentation()),
         registerCommand('language-fricas.browse-back-documentation', () => provider.browseBack()),
         registerCommand('language-fricas.browse-forward-documentation', () => provider.browseForward()),
@@ -177,56 +197,77 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
 
             // Try REPL message connection tool: get-documentation / list-constructors
             if (g_connection) {
-                // If it's a pattern, query list-constructors directly
-                if (word.includes('*') || word.includes('?')) {
+                const isDocSearchQuery = /\s/.test(word)
+
+                // If it's a single-word pattern, query list-constructors directly
+                if (!isDocSearchQuery && (word.includes('*') || word.includes('?'))) {
                     try {
                         const listRes = await g_connection.sendRequest(requestTypeCallTool, {
                             name: 'list-constructors',
                             arguments: { pattern: word }
                         })
-                        const listText = listRes?.content?.[0]?.text
+                        const listText = this.cleanReplDocResult(listRes?.content?.[0]?.text || '')
                         if (listText && listText.trim().length > 0) {
-                            return this.formatConstructorList(listText)
+                            const formatted = this.formatConstructorList(listText)
+                            if (formatted && formatted.trim()) {
+                                return formatted
+                            }
                         }
                     } catch (err) {
                         console.debug('list-constructors tool failed', err)
                     }
                 }
 
-                try {
-                    let result = await g_connection.sendRequest(requestTypeCallTool, {
-                        name: 'get-documentation',
-                        arguments: { name: word, type: 'operation' }
-                    })
-                    let replResult = result?.content?.[0]?.text
-                    if (replResult && replResult.trim().length > 0) { return replResult }
+                if (!isDocSearchQuery) {
+                    try {
+                        let result = await g_connection.sendRequest(requestTypeCallTool, {
+                            name: 'get-documentation',
+                            arguments: { name: word, type: 'operation' }
+                        })
+                        let replResult = this.cleanReplDocResult(result?.content?.[0]?.text || '')
+                        if (replResult && replResult.trim().length > 0) { return replResult }
 
-                    // If not found, try as constructor
-                    result = await g_connection.sendRequest(requestTypeCallTool, {
-                        name: 'get-documentation',
-                        arguments: { name: word, type: 'constructor' }
-                    })
-                    replResult = result?.content?.[0]?.text
-                    if (replResult && replResult.trim().length > 0) { return replResult }
-                } catch (err) {
-                    console.debug('get-documentation tool failed, trying direct eval', err)
+                        // If not found, try as constructor
+                        result = await g_connection.sendRequest(requestTypeCallTool, {
+                            name: 'get-documentation',
+                            arguments: { name: word, type: 'constructor' }
+                        })
+                        replResult = this.cleanReplDocResult(result?.content?.[0]?.text || '')
+                        if (replResult && replResult.trim().length > 0) { return replResult }
+                    } catch (err) {
+                        console.debug('get-documentation tool failed, trying direct eval', err)
+                    }
+
+                    // If nothing was found, try searching for similar constructors with pattern *word*
+                    try {
+                        const listRes = await g_connection.sendRequest(requestTypeCallTool, {
+                            name: 'list-constructors',
+                            arguments: { pattern: `*${word}*` }
+                        })
+                        const listText = this.cleanReplDocResult(listRes?.content?.[0]?.text || '')
+                        if (listText && listText.trim().length > 0) {
+                            const formatted = this.formatConstructorList(listText)
+                            if (formatted && formatted.trim()) {
+                                return `No exact documentation found for \`${word}\`.\n\n### Related Constructors:\n\n${formatted}`
+                            }
+                        }
+                    } catch (err) {
+                        // Ignore pattern search failure
+                    }
                 }
 
-                // If nothing was found, try searching for similar constructors with pattern *word*
+                // Fall back to full-text documentation search via MCP tool
                 try {
-                    const listRes = await g_connection.sendRequest(requestTypeCallTool, {
-                        name: 'list-constructors',
-                        arguments: { pattern: `*${word}*` }
+                    const searchRes = await g_connection.sendRequest(requestTypeCallTool, {
+                        name: 'search-documentation',
+                        arguments: { query: word, format: 'markdown' }
                     })
-                    const listText = listRes?.content?.[0]?.text
-                    if (listText && listText.trim().length > 0) {
-                        const formatted = this.formatConstructorList(listText)
-                        if (formatted && formatted.trim()) {
-                            return `No exact documentation found for \`${word}\`.\n\n### Related Constructors:\n\n${formatted}`
-                        }
+                    const searchText = this.cleanReplDocResult(searchRes?.content?.[0]?.text || '')
+                    if (searchText && searchText.trim().length > 0 && !searchText.startsWith('No documentation found')) {
+                        return this.formatSearchDocResult(searchText)
                     }
                 } catch (err) {
-                    // Ignore pattern search failure
+                    console.debug('search-documentation tool failed', err)
                 }
             }
 
@@ -234,27 +275,46 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             // Only attempt if REPL is already running or we're allowed to start one
             if (g_connection || allowStartREPL) {
                 try {
-                    const opResult = await executeInREPL(
-                        `operationDocumentation("${word}")$SDOC`
-                    )
-                    const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
-                    if (opDoc) { return opDoc }
+                    const isDocSearchQuery = /\s/.test(word)
 
-                    const conResult = await executeInREPL(
-                        `constructorDocumentation("${word}")$SDOC`
-                    )
-                    const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
-                    if (conDoc) { return conDoc }
-
-                    // Pattern search fallback
-                    if (word.includes('*') || word.includes('?')) {
-                        const listResult = await executeInREPL(
-                            `listConstructors("${word}")$SDOC`
+                    if (!isDocSearchQuery) {
+                        const opResult = await executeInREPL(
+                            `operationDocumentation("${word}")$SDOC`
                         )
-                        const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
-                        if (listDoc && listDoc !== '[]') {
-                            return this.formatConstructorList(listDoc)
+                        const opDoc = this.cleanReplDocResult(opResult?.inline || opResult?.all || '')
+                        if (opDoc) { return opDoc }
+
+                        const conResult = await executeInREPL(
+                            `constructorDocumentation("${word}")$SDOC`
+                        )
+                        const conDoc = this.cleanReplDocResult(conResult?.inline || conResult?.all || '')
+                        if (conDoc) { return conDoc }
+
+                        // Pattern search fallback
+                        if (word.includes('*') || word.includes('?')) {
+                            const listResult = await executeInREPL(
+                                `listConstructors("${word}")$SDOC`
+                            )
+                            const listDoc = this.cleanReplDocResult(listResult?.inline || listResult?.all || '')
+                            if (listDoc && listDoc !== '[]') {
+                                const formatted = this.formatConstructorList(listDoc)
+                                if (formatted && formatted.trim()) {
+                                    return formatted
+                                }
+                            }
                         }
+                    }
+                    // Direct REPL full-text documentation search fallback
+                    try {
+                        const searchResult = await executeInREPL(
+                            `searchDocumentation("${word}")$SDOC`
+                        )
+                        const searchDoc = this.cleanReplDocResult(searchResult?.inline || searchResult?.all || '')
+                        if (searchDoc && !searchDoc.startsWith('No documentation found')) {
+                            return this.formatSearchDocResult(searchDoc)
+                        }
+                    } catch (err) {
+                        console.debug('REPL searchDocumentation eval failed', err)
                     }
                 } catch (err) {
                     console.error('Direct REPL eval for doc failed', err)
@@ -284,6 +344,10 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         }
         // Strip surrounding whitespace
         let cleaned = text.trim()
+        // Ignore FriCAS evaluation errors during doc lookup
+        if (cleaned.startsWith('Evaluation Error:') || cleaned.includes('>> Error') || cleaned.includes('>> System error')) {
+            return ''
+        }
         // Remove trailing FriCAS types
         cleaned = cleaned.replace(/\s*Type:\s*(?:String|Void)\s*$/, '').trim()
         // Strip surrounding quotes if present
@@ -349,6 +413,15 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         formatSection('Packages', packages)
 
         return sections.join('\n\n---\n\n')
+    }
+
+    public formatSearchDocResult(rawText: string): string {
+        if (!rawText || !rawText.trim()) {
+            return ''
+        }
+        return rawText.replace(/\b([A-Z][A-Za-z0-9]+)\b/g, (match) => {
+            return `[\`${match}\`](${constructCommandString('language-fricas.search-word', { searchTerm: match })})`
+        })
     }
 
     async showDocumentation() {

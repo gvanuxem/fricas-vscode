@@ -143,6 +143,10 @@
                 "title": "FriCAS: Show Documentation Pane"
             },
             {
+                "command": "language-fricas.search-documentation",
+                "title": "FriCAS: Search Documentation"
+            },
+            {
                 "command": "language-fricas.show-plot-navigator",
                 "title": "FriCAS: Show Plot Navigator"
             },
