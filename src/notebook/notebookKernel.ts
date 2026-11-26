@@ -3,13 +3,13 @@ import * as vscode from 'vscode'
 import { CancellationToken } from 'vscode-jsonrpc/node'
 import { FriCASExecutable } from '../fricasexepath'
 import { FriCASNotebookFeature } from './notebookFeature'
-import { g_connection, requestTypeCallTool, startREPL } from '../interactive/repl'
+import { g_connection, requestTypeCallTool, setActiveNotebookDisplayHandler, startREPL } from '../interactive/repl'
 
 export class FriCASKernel {
     private _localDisposables: vscode.Disposable[] = []
 
     private _scheduledExecutionRequests: vscode.NotebookCellExecution[] = []
-    private _currentExecutionRequest: vscode.NotebookCellExecution = null
+    private _currentExecutionRequest: vscode.NotebookCellExecution | null = null
     private _processExecutionRequests = new Subject()
     private _current_request_id: number = 0
 
@@ -116,8 +116,9 @@ export class FriCASKernel {
 
             while (this._scheduledExecutionRequests.length > 0) {
                 this._currentExecutionRequest =
-                    this._scheduledExecutionRequests.shift()
+                    this._scheduledExecutionRequests.shift() ?? null
 
+                if (!this._currentExecutionRequest) { continue }
                 if (this._currentExecutionRequest.token.isCancellationRequested) {
                     this._currentExecutionRequest.end(undefined)
                 } else {
@@ -136,6 +137,9 @@ export class FriCASKernel {
                             if (!g_connection) {
                                 throw new Error('Could not connect to FriCAS Language Server.')
                             }
+                            setActiveNotebookDisplayHandler((params) => {
+                                this.appendCellOutput([{ mimetype: params.kind, data: params.data }])
+                            })
                             const result = await g_connection.sendRequest(
                                 requestTypeCallTool,
                                 {
@@ -177,6 +181,8 @@ export class FriCASKernel {
                                 ])
                             ])
                             this._currentExecutionRequest.end(false, Date.now())
+                        } finally {
+                            setActiveNotebookDisplayHandler(null)
                         }
                     }
                 }
@@ -196,7 +202,7 @@ export class FriCASKernel {
     private async run(token: CancellationToken) {
         try {
             this.outputChannel.appendLine('FriCAS Notebook Kernel initialized.')
-            this._onConnected.fire(null)
+            this._onConnected.fire(undefined)
             await this.messageLoop(token)
             this._onStopped.fire(undefined)
         } catch (err) {

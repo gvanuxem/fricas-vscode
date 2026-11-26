@@ -17,17 +17,23 @@ const completionTriggerCharacters = [
 ]
 export function activate(context: vscode.ExtensionContext) {
     let completionSubscription: undefined | Disposable = undefined
+    const disposeCompletion = () => {
+        if (completionSubscription) {
+            completionSubscription.dispose()
+            completionSubscription = undefined
+        }
+    }
     context.subscriptions.push(
+        { dispose: disposeCompletion },
         onInit(wrapCrashReporting(conn => {
+            disposeCompletion()
             completionSubscription = vscode.languages.registerCompletionItemProvider(
                 selector,
                 completionItemProvider(conn),
                 ...completionTriggerCharacters
             )
         })),
-        onExit(() => {
-            if (completionSubscription) { completionSubscription.dispose() }
-        })
+        onExit(disposeCompletion)
     )
 }
 

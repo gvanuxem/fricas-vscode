@@ -85,7 +85,7 @@ export class FriCASExecutablesFeature {
 
             const { stdout, } = await execFile(parsedPath, ['--version'])
 
-            const versionArrayFromFriCAS = stdout.toString().split('\n')
+            const versionArrayFromFriCAS = (stdout ?? '').toString().split('\n')
             //const versionArrayFromFriCAS = ['FriCAS 1.3.13-dev']
             const versionStringFromFriCAS = versionArrayFromFriCAS[0].trim()
 
@@ -155,7 +155,10 @@ export class FriCASExecutablesFeature {
             const searchPaths = this.getSearchPaths()
 
             const executables: FriCASExecutable[] = []
-            executables.push(await this.getActiveFriCASExecutableAsync())
+            const activeExec = await this.getActiveFriCASExecutableAsync()
+            if (activeExec) {
+                executables.push(activeExec)
+            }
             await Promise.all(searchPaths.map(async (filePath) => {
                 const newFriCASExecutable = await this.tryFriCASExePathAsync(filePath)
 
@@ -189,9 +192,9 @@ export class FriCASExecutablesFeature {
                 await this.tryAndSetNewFriCASExePathAsync(configPath)
             }
 
-            if(this.actualFriCASExePath) {
-                this.diagnosticsOutput.appendLine(`The identified FriCAS executable is "${this.actualFriCASExePath.file}" version "${this.actualFriCASExePath.version}" with args "${this.actualFriCASExePath.args}".`)
-
+            const exe = this.actualFriCASExePath as FriCASExecutable | undefined
+            if (exe) {
+                this.diagnosticsOutput.appendLine(`The identified FriCAS executable is "${exe.file}" version "${exe.version}" with args "${exe.args}".`)
             }
             else {
                 this.diagnosticsOutput.appendLine(`No FriCAS executable was identified.`)

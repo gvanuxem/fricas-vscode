@@ -1,0 +1,61 @@
+{
+    "SPAD Domain": {
+        "prefix": "abbrev-domain",
+        "body": [
+            ")abbrev domain ${1:ABBR} ${2:DomainName}",
+            "++ Author: ${3:Author}",
+            "++ Description: ${4:Description}",
+            "${2:DomainName}(${5:R : Ring}) : Exports == Implementation where",
+            "  Exports ==> ${6:SetCategory} with",
+            "    ${7:op} : ${8:% -> %} ++ \\spad{${7:op}(x)} ...",
+            "  Implementation ==> add",
+            "    $0"
+        ],
+        "description": "Create a SPAD domain template"
+    },
+    "SPAD Package": {
+        "prefix": "abbrev-package",
+        "body": [
+            ")abbrev package ${1:ABBR} ${2:PackageName}",
+            "++ Author: ${3:Author}",
+            "++ Description: ${4:Description}",
+            "${2:PackageName}(${5:R : Field}) : Exports == Implementation where",
+            "  Exports ==> with",
+            "    ${6:op} : ${7:R -> R} ++ \\spad{${6:op}(x)} ...",
+            "  Implementation ==> add",
+            "    $0"
+        ],
+        "description": "Create a SPAD package template"
+    },
+    "SPAD Category": {
+        "prefix": "abbrev-category",
+        "body": [
+            ")abbrev category ${1:ABBR} ${2:CategoryName}",
+            "++ Author: ${3:Author}",
+            "++ Description: ${4:Description}",
+            "${2:CategoryName}() : Category == ${5:SetCategory} with",
+            "    ${6:op} : ${7:% -> %} ++ \\spad{${6:op}(x)} ...",
+            "  add",
+            "    $0"
+        ],
+        "description": "Create a SPAD category template"
+    },
+    "For Loop": {
+        "prefix": "for",
+        "body": [
+            "for ${1:i} in ${2:1..n} repeat",
+            "    $0"
+        ],
+        "description": "FriCAS for-in-repeat loop"
+    },
+    "If Then Else": {
+        "prefix": "ifelse",
+        "body": [
+            "if ${1:condition} then",
+            "    ${2:trueBranch}",
+            "else",
+            "    ${3:falseBranch}"
+        ],
+        "description": "FriCAS if-then-else block"
+    }
+}

@@ -1,18 +1,13 @@
 import * as vscode from 'vscode'
 import * as rpc from 'vscode-jsonrpc'
-//import { ResponseError } from 'vscode-jsonrpc'
-import * as vslc from 'vscode-languageclient/node'
-import { onSetLanguageClient } from '../extension'
 import { registerCommand, wrapCrashReporting } from '../utils'
-//import { VersionedTextDocumentPositionParams } from './misc'
 import { onExit, onInit } from './repl'
 
-let statusBarItem: vscode.StatusBarItem = null
-let g_connection: rpc.MessageConnection = null
-let g_languageClient: vslc.LanguageClient = null
-let g_currentGetModuleRequestCancelTokenSource: vscode.CancellationTokenSource = null
+let statusBarItem: vscode.StatusBarItem | null = null
+let g_connection: rpc.MessageConnection | null = null
+let g_currentGetModuleRequestCancelTokenSource: vscode.CancellationTokenSource | undefined = undefined
 
-const manuallySetDocuments = []
+const manuallySetDocuments: Record<string, string> = {}
 
 const requestTypeGetModules = new rpc.RequestType<void, string[], void>('repl/loadedModules')
 const requestTypeIsModuleLoaded = new rpc.RequestType<{ mod: string }, boolean, void>('repl/isModuleLoaded')
@@ -32,10 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
         updateModuleForSelectionEvent(changeEvent, g_currentGetModuleRequestCancelTokenSource.token)
     }))
     context.subscriptions.push(registerCommand('language-fricas.chooseModule', chooseModule))
-
-    context.subscriptions.push(onSetLanguageClient(languageClient => {
-        g_languageClient = languageClient
-    }))
 
     // NOTE:
     // set module status bar item just right of language mode selector
@@ -65,58 +56,34 @@ function cancelCurrentGetModuleRequest() {
     }
 }
 
+export function inferSpadConstructorAtLine(getLineText: (line: number) => string, line: number): string {
+    const abbrevRegex = /^\s*\)abbrev\s+(?:domain|package|category)\s+\S+\s+([^\s(]+)/
+    for (let i = line; i >= 0; i--) {
+        const match = getLineText(i).match(abbrevRegex)
+        if (match && match[1]) {
+            return match[1]
+        }
+    }
+    return 'Main'
+}
+
 export async function getModuleForEditor(document: vscode.TextDocument, position: vscode.Position, token?: vscode.CancellationToken): Promise<string> {
     const manuallySetModule = manuallySetDocuments[document.fileName]
     if (manuallySetModule) { return manuallySetModule }
 
-    const languageClient = g_languageClient
-
-    if (!languageClient) { return 'Main' }
-
-    //const params: VersionedTextDocumentPositionParams = {
-    //    textDocument: vslc.TextDocumentIdentifier.create(document.uri.toString()),
-    //    version: document.version,
-    //    position: position
-    //}
-
-    //for (let i = 0; i < 3; i++) {
-        //if (token === undefined || !token.isCancellationRequested) {
-        //    try {
-        //        return await languageClient.sendRequest<string>('repl/getModuleAt', params)
-        //    }
-        //    catch (err) {
-        //        if (err instanceof ResponseError && err.code===rpc.ErrorCodes.ConnectionInactive) {
-        //            return 'Main'
-        //        }
-        //        else if (err instanceof ResponseError && err.code===-33101) {
-        //            // This is a version out of sync situation
-        //            return 'Main'
-        //        }
-        //        else {
-        //            throw err
-        //        }
-        //    }
-        //}
-        //else {
-            // We were canceled, so we give up
-      //      return 'Main'
-        //}
-    //}
-
-    // We tried three times, now give up (gv: no)
-    return 'Main'
+    return inferSpadConstructorAtLine(line => document.lineAt(line).text, position.line)
 }
 
-function isFriCASEditor(editor: vscode.TextEditor = vscode.window.activeTextEditor) {
+function isFriCASEditor(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) {
     return editor && editor.document.languageId === 'fricas'
 }
 
-async function updateStatusBarItem(editor: vscode.TextEditor = vscode.window.activeTextEditor, token?: vscode.CancellationToken) {
-    if (isFriCASEditor(editor)) {
-        statusBarItem.show()
+async function updateStatusBarItem(editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor, token?: vscode.CancellationToken) {
+    if (isFriCASEditor(editor) && editor) {
+        statusBarItem?.show()
         await updateModuleForEditor(editor, token)
     } else {
-        statusBarItem.hide()
+        statusBarItem?.hide()
     }
 }
 
@@ -129,7 +96,9 @@ async function updateModuleForEditor(editor: vscode.TextEditor, token?: vscode.C
     const mod = await getModuleForEditor(editor.document, editor.selection.start, token)
     if (mod) {
         const loaded = await isModuleLoaded(mod)
-        statusBarItem.text = loaded ? mod : '(' + mod + ')'
+        if (statusBarItem) {
+            statusBarItem.text = loaded ? mod : '(' + mod + ')'
+        }
     }
 }
 
@@ -143,13 +112,14 @@ async function isModuleLoaded(mod: string) {
 }
 
 async function chooseModule() {
-    let possibleModules = []
+    if (!g_connection) {
+        vscode.window.showInformationMessage('Setting a module requires an active REPL.')
+        return
+    }
+    let possibleModules: string[] = []
     try {
-        possibleModules = await g_connection.sendRequest(requestTypeGetModules, null)
+        possibleModules = await g_connection.sendRequest(requestTypeGetModules, undefined)
     } catch (err) {
-        if (!g_connection) {
-            vscode.window.showInformationMessage('Setting a module requires an active REPL.')
-        }
         return
     }
 
@@ -161,12 +131,15 @@ async function chooseModule() {
         canPickMany: false
     }
     const mod = await vscode.window.showQuickPick(possibleModules, qpOptions)
+    if (!mod) { return }
 
     const ed = vscode.window.activeTextEditor
-    if (mod === automaticallyChooseOption) {
-        delete manuallySetDocuments[ed.document.fileName]
-    } else {
-        manuallySetDocuments[ed.document.fileName] = mod
+    if (ed) {
+        if (mod === automaticallyChooseOption) {
+            delete manuallySetDocuments[ed.document.fileName]
+        } else {
+            manuallySetDocuments[ed.document.fileName] = mod
+        }
     }
 
     cancelCurrentGetModuleRequest()

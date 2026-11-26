@@ -16,14 +16,14 @@ import * as plots from './plots'
 import * as results from './results'
 import { Frame, openFile } from './results'
 
-//let g_context: vscode.ExtensionContext = null
-let g_languageClient: vslc.LanguageClient = null
+let g_context: vscode.ExtensionContext | null = null
+let g_languageClient: vslc.LanguageClient | null = null
 //let g_compiledProvider = null
 
-let g_terminal: vscode.Terminal = null
-let g_pty: FriCASPseudoTerminal = null
+let g_terminal: vscode.Terminal | null = null
+let g_pty: FriCASPseudoTerminal | null = null
 
-export let g_connection: rpc.MessageConnection = undefined
+export let g_connection: rpc.MessageConnection | undefined = undefined
 
 let g_fricasExecutablesFeature: FriCASExecutablesFeature
 
@@ -84,7 +84,9 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
     private readyResolve: () => void
     public ready: Promise<void>
 
-    constructor(private version: string) {
+    constructor(private version: string, initialHistory: string[] = []) {
+        this.history = initialHistory.slice(-200)
+        this.historyIndex = this.history.length
         this.ready = new Promise(resolve => {
             this.readyResolve = resolve
         })
@@ -126,13 +128,26 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
                 this.writeEmitter.fire('\r\n')
                 if (this.inputBuffer.trim()) {
                     this.history.push(this.inputBuffer)
+                    if (this.history.length > 200) {
+                        this.history = this.history.slice(-200)
+                    }
                     this.historyIndex = this.history.length
+                    g_context?.globalState.update('fricas.replHistory', this.history)
                     this.doEvaluate(this.inputBuffer)
                 } else {
                     this.showPrompt()
                 }
                 this.inputBuffer = ''
                 this.cursorIndex = 0
+            } else if (ch === '\x0c') { // Ctrl+L: clear terminal
+                this.writeEmitter.fire('\x1b[2J\x1b[H')
+                needsRedraw = true
+            } else if (ch === '\t') { // Tab: completion
+                if (needsRedraw) {
+                    this.redrawInput()
+                    needsRedraw = false
+                }
+                this.handleTabCompletion()
             } else if (ch === '\x7f') { // Backspace
                 if (this.cursorIndex > 0) {
                     this.inputBuffer = this.inputBuffer.slice(0, this.cursorIndex - 1) + this.inputBuffer.slice(this.cursorIndex)
@@ -231,6 +246,34 @@ class FriCASPseudoTerminal implements vscode.Pseudoterminal {
         this.inputBuffer = text
         this.cursorIndex = text.length
         this.redrawInput()
+    }
+
+    private async handleTabCompletion() {
+        if (!g_connection) { return }
+        const prefix = this.inputBuffer.slice(0, this.cursorIndex)
+        const match = prefix.match(/([A-Za-z0-9_?!%]+)$/)
+        if (!match) { return }
+        const stem = match[1]
+        try {
+            const items = await g_connection.sendRequest<vscode.CompletionItem[]>(
+                'repl/getcompletions',
+                { line: prefix, mod: 'Main' }
+            )
+            if (!items || items.length === 0) { return }
+            const labels = items.map(it => typeof it.label === 'string' ? it.label : it.label.label)
+                .filter(l => l.startsWith(stem))
+            if (labels.length === 1) {
+                const rest = labels[0].slice(stem.length)
+                this.inputBuffer = prefix + rest + this.inputBuffer.slice(this.cursorIndex)
+                this.cursorIndex += rest.length
+                this.redrawInput()
+            } else if (labels.length > 1) {
+                this.writeEmitter.fire('\r\n' + labels.slice(0, 30).join('  ') + '\r\n')
+                this.redrawInput()
+            }
+        } catch {
+            // Ignore completion errors in REPL
+        }
     }
 
     private async doEvaluate(code: string) {
@@ -338,7 +381,8 @@ export async function startREPL(preserveFocus: boolean, showTerminal: boolean = 
         const version = fricasExecutable ? String(fricasExecutable.getVersion()) : 'unknown'
 
         // Create an interactive pseudo-terminal for REPL display + input
-        g_pty = new FriCASPseudoTerminal(version)
+        const savedHistory = g_context?.globalState.get<string[]>('fricas.replHistory') ?? []
+        g_pty = new FriCASPseudoTerminal(version, savedHistory)
         g_terminal = vscode.window.createTerminal({
             name: `FriCAS REPL (v${version})`,
             pty: g_pty,
@@ -351,7 +395,9 @@ export async function startREPL(preserveFocus: boolean, showTerminal: boolean = 
     }
 
     // Fire onInit so that completions, workspace, modules etc. activate
-    g_onInit.fire(g_connection)
+    if (g_connection) {
+        g_onInit.fire(g_connection)
+    }
 }
 
 /*
@@ -523,9 +569,17 @@ function clearProgress() {
     }
 }
 
+let g_notebookDisplayHandler: ((params: { kind: string, data: any }) => void) | null = null
+
+export function setActiveNotebookDisplayHandler(handler: ((params: { kind: string, data: any }) => void) | null) {
+    g_notebookDisplayHandler = handler
+}
+
 function display(params: { kind: string, data: any }) {
     if (params.kind === 'application/vnd.fricas-vscode.diagnostics') {
         displayDiagnostics(params.data)
+    } else if (g_notebookDisplayHandler) {
+        g_notebookDisplayHandler(params)
     } else {
         plots.displayPlot(params)
     }
@@ -549,7 +603,7 @@ function displayDiagnostics(data: { source: string, items: diagnosticData[] }) {
     const source = data.source
 
     if (g_trace_diagnostics.has(source)) {
-        g_trace_diagnostics.get(source).clear()
+        g_trace_diagnostics.get(source)?.clear()
     } else {
         g_trace_diagnostics.set(source, vscode.languages.createDiagnosticCollection('FriCAS Runtime Diagnostics: ' + source))
     }
@@ -562,7 +616,7 @@ function displayDiagnostics(data: { source: string, items: diagnosticData[] }) {
     const diagnostics = items.map((frame): [vscode.Uri, vscode.Diagnostic[]] => {
         const range = frame.range ?
             new vscode.Range(frame.range[0][0] - 1, frame.range[0][1], frame.range[1][0] - 1, frame.range[1][1]) :
-            new vscode.Range(frame.line - 1, 0, frame.line - 1, 99999)
+            new vscode.Range((frame.line ?? 1) - 1, 0, (frame.line ?? 1) - 1, 99999)
         const diagnostic = new vscode.Diagnostic(
             range,
             frame.msg,
@@ -572,7 +626,7 @@ function displayDiagnostics(data: { source: string, items: diagnosticData[] }) {
             diagnostic.relatedInformation = frame.relatedInformation.map(stackframe => {
                 const range = stackframe.range ?
                     new vscode.Range(stackframe.range[0][0] - 1, stackframe.range[0][1], stackframe.range[1][0] - 1, stackframe.range[1][1]) :
-                    new vscode.Range(stackframe.line - 1, 0, stackframe.line - 1, 99999)
+                    new vscode.Range((stackframe.line ?? 1) - 1, 0, (stackframe.line ?? 1) - 1, 99999)
                 return new vscode.DiagnosticRelatedInformation(
                     new vscode.Location(vscode.Uri.file(stackframe.path), range),
                     stackframe.msg
@@ -588,7 +642,7 @@ function displayDiagnostics(data: { source: string, items: diagnosticData[] }) {
             ]
         ]
     })
-    g_trace_diagnostics.get(source).set(diagnostics)
+    g_trace_diagnostics.get(source)?.set(diagnostics)
 }
 
 function clearDiagnostics() {
@@ -609,8 +663,10 @@ function clearDiagnosticsByProvider() {
 
 function _clearDiagnostic(source: string) {
     const diagnostics = g_trace_diagnostics.get(source)
-    diagnostics.clear()
-    diagnostics.dispose()
+    if (diagnostics) {
+        diagnostics.clear()
+        diagnostics.dispose()
+    }
     g_trace_diagnostics.delete(source)
 }
 
@@ -668,6 +724,8 @@ async function executeFile(uri?: vscode.Uri | string) {
         module = await modules.getModuleForEditor(editor.document, pos)
         isJmd = isMarkdownEditor(editor)
     }
+
+    if (!g_connection) { return }
 
     // For .input files, delegate to FriCAS's )read command.
     if (path.endsWith('.input') && !isJmd) {
@@ -731,6 +789,7 @@ async function getBlockRange(params: VersionedTextDocumentPositionParams): Promi
     const zeroPos = new vscode.Position(0, 0)
     const zeroReturn = [zeroPos, zeroPos, params.position]
 
+    if (!g_languageClient) { return zeroReturn }
     try {
         return (await g_languageClient.sendRequest<vscode.Position[]>('fricas/getCurrentBlockRange', params)).map(pos => new vscode.Position(pos.line, pos.character))
     } catch (err) {
@@ -747,6 +806,7 @@ async function getBlockRange(params: VersionedTextDocumentPositionParams): Promi
 async function selectFriCASBlock() {
 
     const editor = vscode.window.activeTextEditor
+    if (!editor) { return }
     const position = editor.document.validatePosition(editor.selection.start)
     const ret_val = await getBlockRange(getVersionedParamsAtPosition(editor.document, position))
 
@@ -918,8 +978,8 @@ async function evaluateBlockOrSelection(shouldMove: boolean = false) {
     await startREPL(true, false)
 
     for (const selection of selections) {
-        let range: vscode.Range = null
-        let nextBlock: vscode.Position = null
+        let range: vscode.Range | null = null
+        let nextBlock: vscode.Position | null = null
         const cursorPos: vscode.Position = editor.document.validatePosition(new vscode.Position(selection.start.line, selection.start.character))
         const module: string = await modules.getModuleForEditor(editor.document, cursorPos)
 
@@ -964,7 +1024,7 @@ async function evaluateBlockOrSelection(shouldMove: boolean = false) {
 // Returns false if the connection wasn't available
 async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: string, module: string) {
     const section = vscode.workspace.getConfiguration('fricas')
-    const resultType: string = section.get('execution.resultType')
+    const resultType: string = section.get('execution.resultType') ?? 'REPL'
 
     if (!g_connection) {
         return false
@@ -976,11 +1036,10 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
         g_pty.writeOutput(`\x1b[90m${text}\x1b[0m\n`)
     }
 
-    let r: results.Result = null
+    let r: results.Result | null = null
     if (resultType !== 'REPL') {
         r = results.addResult(editor, range, ' ⟳ ', '')
     }
-    console.log(`Sending RPC request tools/call for evaluate: "${text.substring(0, 100)}${text.length > 100 ? "..." : ""}"`)
     try {
         const result = await g_connection.sendRequest(
             requestTypeCallTool,
@@ -989,7 +1048,6 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
                 arguments: { expression: text }
             }
         )
-        console.log(`Received RPC response for evaluate tool`)
         const output = result.content[0].text
         const isError = output.startsWith('Evaluation Error:') || output.startsWith('Julia Evaluation Error:')
 
@@ -1002,7 +1060,7 @@ async function evaluate(editor: vscode.TextEditor, range: vscode.Range, text: st
             }
         }
 
-        if (resultType !== 'REPL') {
+        if (resultType !== 'REPL' && r) {
             if (r.destroyed && r.text === editor.document.getText(r.range)) {
                 r = results.addResult(editor, range, '', '')
             }
@@ -1075,6 +1133,9 @@ function executeSelectionCopyPaste() {
 
 export async function executeInREPL(code: string): Promise<ReturnResult> {
     await startREPL(true)
+    if (!g_connection) {
+        throw new Error('FriCAS REPL is not connected.')
+    }
     const result = await g_connection.sendRequest(
         requestTypeCallTool,
         {
@@ -1095,6 +1156,7 @@ async function interrupt() {
 }
 
 async function softInterrupt() {
+    if (!g_connection) { return }
     try {
         await g_connection.sendNotification('repl/interrupt')
     } catch (err) {
@@ -1108,7 +1170,7 @@ async function cdToHere(uri: vscode.Uri) {
 
     const uriPath = await getDirUriFsPath(uri)
     await startREPL(true, false)
-    if (uriPath) {
+    if (uriPath && g_connection) {
         try {
             await g_connection.sendNotification('repl/cd', { uri: uriPath })
         } catch (err) {
@@ -1118,14 +1180,15 @@ async function cdToHere(uri: vscode.Uri) {
 }
 
 async function activateHere(uri: vscode.Uri) {
-
     const uriPath = await getDirUriFsPath(uri)
-    activatePath(uriPath)
+    if (uriPath) {
+        activatePath(uriPath)
+    }
 }
 
 async function activatePath(path: string) {
     await startREPL(true, false)
-    if (path) {
+    if (path && g_connection) {
         try {
             await g_connection.sendNotification('repl/activateProject', { uri: path })
             switchEnvToPath(path, true)
@@ -1151,7 +1214,7 @@ async function activateFromDir(uri: vscode.Uri) {
     }
 }
 
-async function searchUpFile(target: string, from: string): Promise<string> {
+async function searchUpFile(target: string, from: string): Promise<string | undefined> {
     const parentDir = path.dirname(from)
     if (parentDir === from) {
         return undefined // ensure to escape infinite recursion
@@ -1190,6 +1253,7 @@ async function linkHandler(link: any) {
     if (file.startsWith('.')) {
         // Base file
         const exe = await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()
+        if (!exe) { return }
         file = path.join(await exe.getBaseRootFolderPathAsync(), file)
     } else if (file.startsWith('~')) {
         file = path.join(homedir(), file.slice(1))
@@ -1209,7 +1273,7 @@ function linkProvider(context: vscode.TerminalLinkContext, token: vscode.Cancell
     }
 
     const match = line.match(/(@\s+(?:[^\s/\\]+\s+)?)(.+?):(\d+)/)
-    if (match) {
+    if (match && match.index !== undefined) {
         return [
             {
                 startIndex: match.index + match[1].length,
@@ -1225,7 +1289,7 @@ function linkProvider(context: vscode.TerminalLinkContext, token: vscode.Cancell
 }
 
 function updateCellDelimiters() {
-    const delims: string[] = vscode.workspace.getConfiguration('fricas').get('cellDelimiters')
+    const delims: string[] | undefined = vscode.workspace.getConfiguration('fricas').get('cellDelimiters')
     if (delims) {
         g_cellDelimiters = delims.map(s => RegExp(s))
     }
@@ -1242,7 +1306,7 @@ export async function replStartDebugger(pipename: string) {
 }
 
 export function activate(context: vscode.ExtensionContext, fricasExecutablesFeature: FriCASExecutablesFeature) {
-    //g_context = context
+    g_context = context
     g_fricasExecutablesFeature = fricasExecutablesFeature
 
     context.subscriptions.push(
@@ -1294,18 +1358,21 @@ export function activate(context: vscode.ExtensionContext, fricasExecutablesFeat
         }),
         vscode.workspace.onDidChangeConfiguration(async event => {
             if (event.affectsConfiguration('fricas.usePlotPane')) {
+                if (!g_connection) { return }
                 try {
                     await g_connection.sendNotification('repl/togglePlotPane', { enable: vscode.workspace.getConfiguration('fricas').get('usePlotPane') })
                 } catch (err) {
                     console.warn(err)
                 }
             } else if (event.affectsConfiguration('fricas.useProgressFrontend')) {
+                if (!g_connection) { return }
                 try {
                     await g_connection.sendNotification('repl/toggleProgress', { enable: vscode.workspace.getConfiguration('fricas').get('useProgressFrontend') })
                 } catch (err) {
                     console.warn(err)
                 }
             } else if (event.affectsConfiguration('fricas.showRuntimeDiagnostics')) {
+                if (!g_connection) { return }
                 try {
                     await g_connection.sendNotification('repl/toggleDiagnostics', { enable: vscode.workspace.getConfiguration('fricas').get('showRuntimeDiagnostics') })
                 } catch (err) {
@@ -1355,8 +1422,8 @@ export function activate(context: vscode.ExtensionContext, fricasExecutablesFeat
     )
 
     const terminalConfig = vscode.workspace.getConfiguration('terminal.integrated')
-    const shellSkipCommands: Array<String> = terminalConfig.get('commandsToSkipShell')
-    if (shellSkipCommands.indexOf('language-fricas.interrupt') === -1) {
+    const shellSkipCommands: string[] = [...(terminalConfig.get<string[]>('commandsToSkipShell') ?? [])]
+    if (!shellSkipCommands.includes('language-fricas.interrupt')) {
         shellSkipCommands.push('language-fricas.interrupt')
         terminalConfig.update('commandsToSkipShell', shellSkipCommands, true)
     }

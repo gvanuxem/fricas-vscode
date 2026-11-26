@@ -8,12 +8,12 @@ import { onSetLanguageClient } from './extension'
 import { FriCASExecutablesFeature } from './fricasexepath'
 import { registerCommand, resolvePath } from './utils'
 
-let g_languageClient: vslc.LanguageClient = null
+let g_languageClient: vslc.LanguageClient | null = null
 
-let g_current_environment: vscode.StatusBarItem = null
+let g_current_environment: vscode.StatusBarItem | null = null
 
-let g_path_of_current_environment: string = null
-let g_path_of_default_environment: string = null
+let g_path_of_current_environment: string | null = null
+let g_path_of_default_environment: string | null = null
 //let g_resolved_path_of_environment: string = null
 
 //let g_fricasExecutablesFeature: FriCASExecutablesFeature = null
@@ -48,7 +48,9 @@ export async function switchEnvToPath(envpath: string, notifyLS: boolean) {
         }
     }
 
-    g_current_environment.text = 'FriCAS env: ' + await getEnvName()
+    if (g_current_environment) {
+        g_current_environment.text = 'FriCAS env: ' + await getEnvName()
+    }
 
     if (notifyLS) {
         if (!g_languageClient) {

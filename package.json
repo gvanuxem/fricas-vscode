@@ -2,7 +2,7 @@
     "name": "language-fricas",
     "displayName": "FriCAS",
     "description": "FriCAS Language Support",
-    "version": "0.1.0-alpha",
+    "version": "1.0.0-alpha",
     "preview": true,
     "publisher": "gvanuxem",
     "engines": {
@@ -15,7 +15,7 @@
     "homepage": "https://github.com/gvanuxem/fricas-vscode",
     "repository": {
         "type": "git",
-        "url": "https://github.com/gvanuxem/fricas-vscode/fricas-vscode.git"
+        "url": "https://github.com/gvanuxem/fricas-vscode.git"
     },
     "icon": "images/fricas-logo.png",
     "categories": [
@@ -57,6 +57,12 @@
                 "extensions": [
                     ".fmd"
                 ]
+            }
+        ],
+        "snippets": [
+            {
+                "language": "fricas",
+                "path": "./snippets/fricas.json"
             }
         ],
         "grammars": [
@@ -857,10 +863,10 @@
         "compile-dry-run": "tsc -p ./ --noEmit --pretty",
         "watch": "tsc -watch -p ./",
         "test": "node ./out/test/runTest.js",
+        "test:unit": "npm run compile && mocha -u tdd -r ./src/test/unit-register.js ./out/test/suite/*.test.js",
         "initialsetup": "npm install",
         "update2latest": "git pull && npm install --no-save && npm run compile && npm run webpack",
         "package": "vsce package",
-        "updatedeps": "npm run compile && node ./out/scripts/updateDeps.js",
         "tagminor": "npm version minor && git push --tags && git push",
         "tagmajor": "npm version major && git push --tags && git push"
     },
@@ -868,7 +874,6 @@
         "@traptitech/markdown-it-katex": "^3.5.0",
         "@vscode/test-electron": "^2.2.0",
         "@vscode/webview-ui-toolkit": "^1.4.0",
-        "applicationinsights": "^2",
         "async-file": "^v2.0.2",
         "await-notify": "^1.0.1",
         "markdown-it": "^12.3.2",
@@ -884,7 +889,6 @@
         "which": "^2.0.2"
     },
     "devDependencies": {
-        "@types/download": "^8.0.1",
         "@types/markdown-it": "^12.2.3",
         "@types/mocha": "^9.1.0",
         "@types/node": "^18",
@@ -893,7 +897,6 @@
         "@types/vscode": "1.78.0",
         "@typescript-eslint/parser": "^5.14.0",
         "@vscode/vsce": "^2.15.1",
-        "download": "^3.3.0",
         "eslint": "^8.11.0",
         "mocha": "^7.2.0",
         "ts-loader": "^9.2.8",

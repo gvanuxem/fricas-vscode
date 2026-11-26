@@ -8,6 +8,9 @@ export const fricasDiagnosticCollection = vscode.languages.createDiagnosticColle
 export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         fricasDiagnosticCollection,
+        vscode.workspace.onDidCloseTextDocument(doc => {
+            fricasDiagnosticCollection.delete(doc.uri)
+        }),
         registerCommand('language-fricas.compileSpadFile', (uri?: vscode.Uri) => compileFile(uri, 'spad')),
         registerCommand('language-fricas.compileBootFile', (uri?: vscode.Uri) => compileFile(uri, 'boot')),
         registerCommand('language-fricas.compileLispFile', (uri?: vscode.Uri) => compileFile(uri, 'lisp'))
@@ -62,14 +65,15 @@ export function parseDiagnosticLines(output: string): CompilerDiagnostic[] {
     return diagnostics
 }
 
-function parseSpadDiagnostics(output: string, targetUri: vscode.Uri) {
+function parseSpadDiagnostics(output: string, targetUri: vscode.Uri): boolean {
     const parsed = parseDiagnosticLines(output)
     const diagnostics: vscode.Diagnostic[] = parsed.map(d => {
-        const range = new vscode.Range(d.line, 0, d.line, 999)
+        const range = new vscode.Range(d.line, 0, d.line, Number.MAX_SAFE_INTEGER)
         const severity = d.isError ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning
         return new vscode.Diagnostic(range, d.message, severity)
     })
     fricasDiagnosticCollection.set(targetUri, diagnostics)
+    return parsed.some(d => d.isError)
 }
 
 async function compileFile(uri?: vscode.Uri, kind: 'spad' | 'boot' | 'lisp' = 'spad') {
@@ -98,18 +102,15 @@ async function compileFile(uri?: vscode.Uri, kind: 'spad' | 'boot' | 'lisp' = 's
         },
         async () => {
             try {
-                const result = await g_connection.sendRequest(requestTypeCallTool, {
+                const result = await g_connection!.sendRequest(requestTypeCallTool, {
                     name: toolName,
                     arguments: { path: filePath }
                 })
                 const output = result?.content?.[0]?.text ?? ''
-                const isError = output.includes('Error') || output.includes('FATAL')
+                const hasDiagnosticError = kind === 'spad' ? parseSpadDiagnostics(output, targetUri) : false
+                const isError = hasDiagnosticError || output.includes('>> Error') || output.includes('>> System error') || output.includes('FATAL') || output.startsWith('Evaluation Error:')
 
                 await echoREPLEvaluation(commandLabel, output, isError)
-
-                if (kind === 'spad') {
-                    parseSpadDiagnostics(output, targetUri)
-                }
 
                 if (isError) {
                     vscode.window.showErrorMessage(`Compilation of ${path.basename(filePath)} failed. See REPL for details.`)

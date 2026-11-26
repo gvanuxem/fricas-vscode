@@ -36,12 +36,13 @@ md.validateLink = (url) => {
 
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
     const aIndex = tokens[idx].attrIndex('href')
+    const attrs = tokens[idx].attrs
 
-    if (aIndex >= 0 && tokens[idx].attrs[aIndex][1] === '@ref' && tokens.length > idx + 1) {
+    if (aIndex >= 0 && attrs && attrs[aIndex][1] === '@ref' && tokens.length > idx + 1) {
         const commandUri = constructCommandString('language-fricas.search-word', { searchTerm: tokens[idx + 1].content })
-        tokens[idx].attrs[aIndex][1] = vscode.Uri.parse(commandUri).toString()
-    } else if (aIndex >= 0) {
-        const href = tokens[idx].attrs[aIndex][1]
+        attrs[aIndex][1] = vscode.Uri.parse(commandUri).toString()
+    } else if (aIndex >= 0 && attrs) {
+        const href = attrs[aIndex][1]
         const { uri, line } = openArgs(href)
         let commandUri
         if (line === undefined) {
@@ -49,7 +50,7 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
         } else {
             commandUri = constructCommandString('language-fricas.openFile', { path: uri.toString(), line })
         }
-        tokens[idx].attrs[aIndex][1] = commandUri
+        attrs[aIndex][1] = commandUri
     }
 
     return self.renderToken(tokens, idx, options)
@@ -89,7 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
 }
 
-class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.HoverProvider {
+export class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.HoverProvider {
     private view?: vscode.WebviewView
     private context: vscode.ExtensionContext
 
@@ -151,6 +152,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     }
 
     async showLandingPage() {
+        this.forwardStack = []
         const html = this.createWebviewHTML(this.getLandingPageMD())
         this.setHTML(html)
     }
@@ -173,9 +175,10 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         }
         word = word.trim()
         await this.showDocumentationPane()
-        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word))
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word), false)
 
         const docAsMD = await this.getDocumentationFromWord(word)
+        this.forwardStack = []
         const html = this.createWebviewHTML(docAsMD || `No documentation found for \`${word}\`.`, word)
         this.setHTML(html)
     }
@@ -323,11 +326,14 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             return ''
         })()
 
+        let timer: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 10000)
+            timer = setTimeout(() => resolve(''), 10000)
         })
 
-        return Promise.race([fetchPromise, timeoutPromise])
+        return Promise.race([fetchPromise, timeoutPromise]).finally(() => {
+            if (timer) { clearTimeout(timer) }
+        })
     }
 
     private cleanReplDocResult(text: string | any): string {
@@ -432,7 +438,7 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         const word = wordRange ? editor.document.getText(wordRange) : ''
 
         await this.showDocumentationPane()
-        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word))
+        this.setHTML(this.createWebviewHTML('### Searching for documentation...', word), false)
 
         const docAsMD = await this.getDocumentation(editor)
 
@@ -491,26 +497,33 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
             return ''
         })()
 
+        let timer: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<string>((resolve) => {
-            setTimeout(() => resolve(''), 10000)
+            timer = setTimeout(() => resolve(''), 10000)
         })
 
-        return Promise.race([fetchPromise, timeoutPromise])
+        return Promise.race([fetchPromise, timeoutPromise]).finally(() => {
+            if (timer) { clearTimeout(timer) }
+        })
     }
 
     createWebviewHTML(docAsMD: string, query: string = '') {
         const docAsHTML = md.render(docAsMD)
+        if (!this.view) {
+            return docAsHTML
+        }
 
         const extensionPath = this.context.extensionPath
+        const webview = this.view.webview
 
-        const googleFontscss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'google_fonts', 'css')))
-        const fontawesomecss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'fontawesome.min.css')))
-        const solidcss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'solid.min.css')))
-        const brandscss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'brands.min.css')))
-        const documenterStylesheetcss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'documenter', 'documenter-vscode.css')))
-        const katexcss = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'katex', 'katex.min.css')))
+        const googleFontscss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'google_fonts', 'css')))
+        const fontawesomecss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'fontawesome.min.css')))
+        const solidcss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'solid.min.css')))
+        const brandscss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'fontawesome', 'brands.min.css')))
+        const documenterStylesheetcss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'documenter', 'documenter-vscode.css')))
+        const katexcss = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'katex', 'katex.min.css')))
 
-        const webfontjs = this.view.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'webfont', 'webfont.js')))
+        const webfontjs = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'libs', 'webfont', 'webfont.js')))
 
         return `
     <html lang="en" class='theme--documenter-vscode'>
@@ -640,9 +653,10 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
     `
     }
 
-    setHTML(html: string) {
-        // set current stack
-        this.backStack.push(html)
+    setHTML(html: string, pushToHistory: boolean = true) {
+        if (pushToHistory && this.backStack[this.backStack.length - 1] !== html) {
+            this.backStack.push(html)
+        }
 
         if (this.view) {
             this.view.webview.html = html
@@ -661,15 +675,23 @@ class DocumentationViewProvider implements vscode.WebviewViewProvider, vscode.Ho
         if (!this.isBrowseBackAvailable()) { return }
 
         const current = this.backStack.pop()
-        this.forwardStack.push(current)
+        if (current) {
+            this.forwardStack.push(current)
+        }
 
-        this.setHTML(this.backStack.pop())
+        const previous = this.backStack[this.backStack.length - 1]
+        if (previous) {
+            this.setHTML(previous, false)
+        }
     }
 
     browseForward() {
         if (!this.isBrowseForwardAvailable()) { return }
 
-        this.setHTML(this.forwardStack.pop())
+        const next = this.forwardStack.pop()
+        if (next) {
+            this.setHTML(next, true)
+        }
     }
 
     private getLandingPageMD() {

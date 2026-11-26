@@ -8,6 +8,7 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 import { LanguageClient, LanguageClientOptions, RevealOutputChannelOn, ServerOptions } from 'vscode-languageclient/node'
 import * as documentation from './docbrowser/documentation'
+import { FriCASDefinitionProvider } from './definition'
 import { FriCASDocumentSymbolProvider } from './outline'
 import * as repl from './interactive/repl'
 import { WorkspaceFeature } from './interactive/workspace'
@@ -22,14 +23,14 @@ import { FriCASGlobalDiagnosticOutputFeature } from './globalDiagnosticOutput'
 
 sourcemapsupport.install({ handleUncaughtExceptions: false })
 
-let g_languageClient: LanguageClient = null
-let g_context: vscode.ExtensionContext = null
+let g_languageClient: LanguageClient | null = null
+let g_context: vscode.ExtensionContext | null = null
 //let g_watchedEnvironmentFile: string = null
-let g_startupNotification: vscode.StatusBarItem = null
-let g_fricasExecutablesFeature: FriCASExecutablesFeature = null
+let g_startupNotification: vscode.StatusBarItem | null = null
+let g_fricasExecutablesFeature: FriCASExecutablesFeature | null = null
 
-let g_traceOutputChannel: vscode.OutputChannel = null
-let g_outputChannel: vscode.OutputChannel = null
+let g_traceOutputChannel: vscode.OutputChannel | null = null
+let g_outputChannel: vscode.OutputChannel | null = null
 
 export const increaseIndentPattern: RegExp = /^((?!--).)*(\b(repeat|where|with|add|then|else|try|finally|catch|except)\b|==|==>|:=|\{|\(|\[)\s*$/
 export const decreaseIndentPattern: RegExp = /^\s*(\b(else|finally|catch|except)\b|[}\]\)]).*$/
@@ -69,6 +70,13 @@ export async function activate(context: vscode.ExtensionContext) {
         g_fricasExecutablesFeature = new FriCASExecutablesFeature(context, globalDiagnosticOutputFeature)
         context.subscriptions.push(g_fricasExecutablesFeature)
 
+        context.subscriptions.push(
+            vscode.languages.registerDefinitionProvider(
+                { scheme: 'file', language: 'fricas' },
+                new FriCASDefinitionProvider(g_fricasExecutablesFeature)
+            )
+        )
+
         repl.activate(context, g_fricasExecutablesFeature)
         documentation.activate(context)
         tasks.activate(context, g_fricasExecutablesFeature)
@@ -93,7 +101,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 //const onDiskPath = vscode.Uri.joinPath(vscode.Uri.file(process.env['FRICAS']), '/share/doc/html/api/index/html/index.html');
                 //const catGifSrc = panel.webview.asWebviewUri(onDiskPath);
-                const index = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath')
+                const index = vscode.workspace.getConfiguration('fricas').get<string>('documentationFilePath') ?? ''
                 panel.webview.html = getWebviewContent(index)
 
                 // Update contents based on view state changes
@@ -137,11 +145,11 @@ export async function activate(context: vscode.ExtensionContext) {
         const api = {
             version: 4,
             async getFriCASExecutable() {
-                return await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()
+                return await g_fricasExecutablesFeature?.getActiveFriCASExecutableAsync()
             },
             async getFriCASPath() {
                 console.warn('FriCAS extension for VSCode: `getFriCASPath` API is deprecated.')
-                return (await g_fricasExecutablesFeature.getActiveFriCASExecutableAsync()).file
+                return (await g_fricasExecutablesFeature?.getActiveFriCASExecutableAsync())?.file ?? ''
             },
             executeInREPL: repl.executeInREPL
         }
@@ -153,56 +161,36 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 function getWebviewContent(index: string) {
-    const linkUri = {
-        scheme: 'https',
-        path: '/',
-        authority: index //gvanuxem.github.io/jlfricas.documentation/api/
-    }
-    const thisEditorParams = [vscode.Uri.parse(index)]
+    const parsedUri = vscode.Uri.parse(index)
+    const thisEditorParams = [parsedUri]
     const besideEditorParams = [
-        linkUri,
+        parsedUri,
         vscode.ViewColumn.Beside
     ]
-    /*
-      // See: https://www.eliostruyf.com/command-uri-vscode-webview-open-files-links/
-      const fileUri = {
-        scheme: 'file',
-        path: '/usr/local/lib/fricas/target/x86_64-linux-gnu/share/doc/html/api/index.html',
-        authority: ''
-      };
-      return (
-          <>
-            <a href={`command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}`}>Open link</a>
-          </>
-      )"
-    }*/
     return `
   <!DOCTYPE html>
+  <html>
   <head>
     <title>FriCAS Library Documentation</title>
   </head>
   <body>
   <h1>FriCAS Documentation</h1>
   <p>
-		<p>
-		    <a href="command:vscode.open?${encodeURIComponent(
-        JSON.stringify(thisEditorParams)
-    )}">open in this editor</a>
-		</p>
-		<p>
-		<a href="command:vscode.open?${encodeURIComponent(
-        JSON.stringify(besideEditorParams)
-    )}">open beside</a>
-		</p>
-        <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(linkUri))}">FriCAS Documentation</a>
-  </body>
+    <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(thisEditorParams))}">open in this editor</a>
   </p>
+  <p>
+    <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(besideEditorParams))}">open beside</a>
+  </p>
+  <p>
+    <a href="command:vscode.open?${encodeURIComponent(JSON.stringify(thisEditorParams))}">FriCAS Documentation</a>
+  </p>
+  </body>
   </html>`
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-    const promises = []
+    const promises: Promise<unknown>[] = []
 
     promises.push(repl.deactivate())
 
@@ -213,9 +201,9 @@ export function deactivate() {
     return Promise.all(promises)
 }
 
-const g_onSetLanguageClient = new vscode.EventEmitter<LanguageClient>()
+const g_onSetLanguageClient = new vscode.EventEmitter<LanguageClient | null>()
 export const onSetLanguageClient = g_onSetLanguageClient.event
-function setLanguageClient(languageClient: LanguageClient = null) {
+function setLanguageClient(languageClient: LanguageClient | null = null) {
     g_onSetLanguageClient.fire(languageClient)
     g_languageClient = languageClient
 }
@@ -262,10 +250,10 @@ const supportedLanguages = [
 ]
 
 async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFeature) {
-    g_startupNotification.text = 'FriCAS: Starting Language Server…'
-    g_startupNotification.show()
+    g_startupNotification!.text = 'FriCAS: Starting Language Server…'
+    g_startupNotification!.show()
 
-    const storagePath = g_context.globalStorageUri.fsPath
+    const storagePath = g_context!.globalStorageUri.fsPath
 
     const languageServerDepotPath = path.join(storagePath, 'lsdepot', 'v1')
     await fs.createDirectory(languageServerDepotPath)
@@ -297,7 +285,7 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
                 vscode.commands.executeCommand('workbench.action.openSettings', 'fricas.executablePath')
             }
         })
-        g_startupNotification.hide()
+        g_startupNotification?.hide()
         return
     }
     const serverOptions: ServerOptions = Boolean(process.env.DETACHED_LS) ?
@@ -311,7 +299,7 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
             debug: { command: fricasExecutable.file, args: [...fricasExecutable.args, ...serverArgsDebug], options: spawnOptions }
         }
 
-    const selector = []
+    const selector: { language: string; scheme: string }[] = []
     for (const scheme of supportedSchemes) {
         for (const language of supportedLanguages) {
             selector.push({
@@ -363,12 +351,12 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
     //}
 
     try {
-        g_startupNotification.command = 'language-fricas.showLanguageServerOutput'
+        g_startupNotification!.command = 'language-fricas.showLanguageServerOutput'
         setLanguageClient(languageClient)
         //await languageClient.start()
         languageClient.start()
-        g_startupNotification.text = 'FriCAS: Language server started.'
-        g_startupNotification.show()
+        g_startupNotification!.text = 'FriCAS: Language server started.'
+        g_startupNotification!.show()
     }
     catch (e) {
         vscode.window.showErrorMessage('[3] Could not start the FriCAS language server. Make sure the configuration setting fricas.executablePath points to the FriCAS binary.', 'Open Settings').then(val => {
@@ -378,13 +366,15 @@ async function startLanguageServer(fricasExecutablesFeature: FriCASExecutablesFe
         })
         setLanguageClient()
     }
-    g_startupNotification.hide()
+    g_startupNotification!.hide()
 }
 
-async function restartLanguageServer(languageClient: LanguageClient = g_languageClient) {
+async function restartLanguageServer(languageClient: LanguageClient | null = g_languageClient) {
     if (languageClient !== null) {
         await languageClient.stop()
         setLanguageClient()
     }
-    await startLanguageServer(g_fricasExecutablesFeature)
+    if (g_fricasExecutablesFeature) {
+        await startLanguageServer(g_fricasExecutablesFeature)
+    }
 }

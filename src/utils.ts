@@ -45,11 +45,10 @@ export function generatePipeName(pid: string, name: string) {
  * @returns A string to set the value of `FRICAS_NUM_THREADS`
  */
 export function inferFriCASNumThreads(): string {
-    return ''
     const config: number | string | undefined = vscode.workspace.getConfiguration('fricas').get('NumThreads') ?? undefined
     const env: string | undefined = process.env['FRICAS_NUM_THREADS']
 
-    if (config !== undefined) {
+    if (config !== undefined && config !== null && config.toString() !== '') {
         return config.toString()
     }
     else if (env !== undefined) {

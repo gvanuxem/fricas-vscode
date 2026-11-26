@@ -54,10 +54,10 @@ abstract class SessionNode extends AbstractWorkspaceNode {
     constructor() {
         super()
 
-        this._showModules = vscode.workspace.getConfiguration('fricas').get('workspace.showModules')
+        this._showModules = vscode.workspace.getConfiguration('fricas').get<boolean>('workspace.showModules') ?? false
         vscode.workspace.onDidChangeConfiguration(config => {
             if (config.affectsConfiguration('fricas.workspace.showModules')) {
-                this._showModules = vscode.workspace.getConfiguration('fricas').get('workspace.showModules')
+                this._showModules = vscode.workspace.getConfiguration('fricas').get<boolean>('workspace.showModules') ?? false
                 this.updateReplVariables()
             }
         })
@@ -195,7 +195,7 @@ class VariableNode extends AbstractWorkspaceNode {
 export class WorkspaceFeature {
     _REPLTreeDataProvider: REPLTreeDataProvider
 
-    _REPLNode: REPLNode
+    _REPLNode: REPLNode | null = null
     _NotebookNodes: NotebookNode[] = []
 
     constructor(private context: vscode.ExtensionContext) {
@@ -231,7 +231,7 @@ export class WorkspaceFeature {
     }
 
     private closeREPL(err) {
-        this._REPLNode.dispose()
+        this._REPLNode?.dispose()
         this._REPLNode = null
         this._REPLTreeDataProvider.refresh()
     }
@@ -241,6 +241,7 @@ export class WorkspaceFeature {
     }
 
     async openLocation(node: VariableNode) {
+        if (!node.workspaceVariable.location) { return }
         openFile(
             node.workspaceVariable.location.file,
             node.workspaceVariable.location.line
@@ -256,7 +257,7 @@ export class WorkspaceFeature {
         this._NotebookNodes.push(node)
         kernel.onCellRunFinished((e) => node.updateReplVariables())
         kernel.onConnected((e) => {
-            kernel._msgConnection.onNotification(notifyTypeDisplay, (params) => displayPlot(params, kernel))
+            kernel._msgConnection?.onNotification(notifyTypeDisplay, (params) => displayPlot(params, kernel))
             node.updateReplVariables()
         })
         kernel.onStopped((e) => {
@@ -330,11 +331,12 @@ implements vscode.TreeDataProvider<AbstractWorkspaceNode>
             treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
             return treeItem
         }
+        return new vscode.TreeItem('')
     }
 
     toggleModules(show: boolean) {
-        this.workspaceFeature._REPLNode.toggleModules(show)
-        this.workspaceFeature._REPLNode.updateReplVariables()
+        this.workspaceFeature._REPLNode?.toggleModules(show)
+        this.workspaceFeature._REPLNode?.updateReplVariables()
         this.workspaceFeature._NotebookNodes.forEach(node => {
             node.toggleModules(show)
             node.updateReplVariables()

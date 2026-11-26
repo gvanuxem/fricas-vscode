@@ -3,6 +3,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as ext from '../../extension'
 import { parseDiagnosticLines } from '../../compiler'
+import { DocumentationViewProvider } from '../../docbrowser/documentation'
+import { inferSpadConstructorAtLine } from '../../interactive/modules'
 import { continuationRegex, countUnclosedBrackets } from '../../outline'
 
 suite('FriCAS Indentation Rules', () => {
@@ -164,6 +166,52 @@ suite('FriCAS Outline Line Continuation and Brackets', () => {
         assert.strictEqual(countUnclosedBrackets('++ docstring with open ( paren'), 0)
         assert.strictEqual(countUnclosedBrackets('nested [{(brackets)}]'), 0)
         assert.strictEqual(countUnclosedBrackets('nested [{(open'), 3)
+    })
+})
+
+suite('FriCAS Documentation Browser Helpers', () => {
+    const provider = new DocumentationViewProvider({} as any)
+
+    test('formats constructor list into markdown sections with command links', () => {
+        const raw = '[categories = [MatrixCategory], domains = [Matrix, SquareMatrix], packages = []]'
+        const formatted = provider.formatConstructorList(raw)
+        assert.ok(formatted.includes('### Categories (1)'))
+        assert.ok(formatted.includes('### Domains (2)'))
+        assert.ok(!formatted.includes('### Packages'))
+        assert.ok(formatted.includes('[`Matrix`](command:language-fricas.search-word?'))
+    })
+
+    test('formats search documentation results with constructor links', () => {
+        const raw = 'From: MatrixCategory(R,Row,Col)\ndeterminant(m) returns the determinant.'
+        const formatted = provider.formatSearchDocResult(raw)
+        assert.ok(formatted.includes('[`MatrixCategory`](command:language-fricas.search-word?'))
+        assert.ok(formatted.includes('determinant(m)'))
+    })
+
+    test('filters evaluation errors in cleanReplDocResult', () => {
+        assert.strictEqual((provider as any).cleanReplDocResult('Evaluation Error: invalid pattern'), '')
+        assert.strictEqual((provider as any).cleanReplDocResult('>> Error: something'), '')
+        assert.strictEqual((provider as any).cleanReplDocResult('"hello\\nworld"\nType: String'), 'hello\nworld')
+    })
+})
+
+suite('FriCAS Module Detection', () => {
+    test('infers enclosing )abbrev constructor name', () => {
+        const lines = [
+            ')abbrev package SDOC SpadDoc',
+            'SpadDoc : Exports == Implementation where',
+            '  foo() == 1',
+            ')abbrev domain MYDOM MyDomain',
+            'MyDomain(R : Ring) : Exports == Implementation where',
+            '  bar() == 2'
+        ]
+        assert.strictEqual(inferSpadConstructorAtLine(i => lines[i], 2), 'SpadDoc')
+        assert.strictEqual(inferSpadConstructorAtLine(i => lines[i], 5), 'MyDomain')
+    })
+
+    test('falls back to Main when no )abbrev is above cursor', () => {
+        const lines = ['x := 1 + 1', 'y := x * 2']
+        assert.strictEqual(inferSpadConstructorAtLine(i => lines[i], 1), 'Main')
     })
 })
 

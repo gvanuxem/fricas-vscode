@@ -63,7 +63,7 @@ export class Result {
 
         const decoration = this.createDecoration()
 
-        if (content.isIcon) {
+        if (content.isIcon && decoration.before) {
             decoration.before.contentIconPath = content.content
         } else if (decoration.before) {
             decoration.before.contentText = content.content
@@ -418,8 +418,7 @@ export async function openFile(path: string, line: number | undefined = undefine
 
     let uri: vscode.Uri
     if (path.indexOf('Untitled') === 0) {
-        // can't open an untitled file like this:
-        // uri = vscode.Uri.parse('untitled:' + path)
+        return undefined
     } else {
         uri = vscode.Uri.file(path)
     }

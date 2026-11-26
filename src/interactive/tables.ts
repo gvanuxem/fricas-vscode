@@ -38,6 +38,7 @@ export function displayTable(payload, context, isLazy = false, kernel?: FriCASKe
         const objectId = parsedPayload.id
 
         panel.onDidDispose(async () => {
+            if (!g_connection) { return }
             try {
                 await g_connection.sendNotification(
                     clearLazyTable,
@@ -54,6 +55,7 @@ export function displayTable(payload, context, isLazy = false, kernel?: FriCASKe
             if (message.type === 'getRows') {
                 let response
                 const conn = kernel?._msgConnection || g_connection
+                if (!conn) { throw new Error('No connection available') }
                 try {
                     const data = await conn.sendRequest(
                         requestTypeGetTableData,

@@ -1,0 +1,28 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
+    },
+    "env": {
+        "node": true,
+        "es6": true,
+        "mocha": true
+    },
+    "ignorePatterns": [
+        "out/**",
+        "dist/**",
+        "libs/**",
+        "node_modules/**"
+    ],
+    "rules": {
+        "semi": ["warn", "never"],
+        "no-unreachable": "error",
+        "no-duplicate-case": "error",
+        "no-empty": ["warn", { "allowEmptyCatch": true }],
+        "eqeqeq": ["warn", "smart"],
+        "no-var": "error",
+        "prefer-const": "warn"
+    }
+}

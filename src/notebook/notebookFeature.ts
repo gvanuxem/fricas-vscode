@@ -36,7 +36,7 @@ export class FriCASNotebookFeature {
     >();
     private _outputChannel: vscode.OutputChannel
     private readonly disposables: vscode.Disposable[] = [];
-    private vscodeIpynbApi = undefined;
+    private vscodeIpynbApi: any = undefined;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -105,7 +105,7 @@ export class FriCASNotebookFeature {
             controller.onDidChangeSelectedNotebooks(
                 ({ notebook, selected }) => {
                     // If we select our controller, then update the notebook metadata with the kernel information.
-                    if (!selected) {
+                    if (!selected || !ver) {
                         return
                     }
                     this.updateNotebookWithSelectedKernel(notebook, ver)
@@ -125,12 +125,15 @@ export class FriCASNotebookFeature {
         // Get metadata from notebook (to get an hint of what version of fricas is used)
         const version = this.getNotebookLanguageVersion(e)
 
+        const parsedTargetVersion = semver.parse(version)
+        if (!parsedTargetVersion) { return }
+
         // Find all controllers where the FriCAS version matches the FriCAS version in the
         // notebook exactly. If there are multiple controllers, put official release first,
         // and prefer x64 builds
         const perfectMatchVersions = Array.from(this._controllers.entries())
             .filter(
-                ([_, fricasExec]) => fricasExec.getVersion().toString() === semver.parse(version).toString()
+                ([_, fricasExec]) => fricasExec.getVersion()?.toString() === parsedTargetVersion.toString()
             )
             .sort(([_, a], [__, b]) => {
                 // First, we give preference to official releases, rather than linked fricasup channels
@@ -149,15 +152,15 @@ export class FriCASNotebookFeature {
                     }
                 }
                 // Then we give preference to release and lts channels
-                else if (a.channel==='release' || a.channel.startsWith('release~')) {
+                else if (a.channel === 'release' || a.channel?.startsWith('release~')) {
                     return -1
                 }
-                else if (b.channel==='release' || b.channel.startsWith('release~')) {
+                else if (b.channel === 'release' || b.channel?.startsWith('release~')) {
                     return 1
-                } else if (a.channel==='lts' || a.channel.startsWith('lts~')) {
+                } else if (a.channel === 'lts' || a.channel?.startsWith('lts~')) {
                     return -1
                 }
-                else if (b.channel==='lts' || b.channel.startsWith('lts~')) {
+                else if (b.channel === 'lts' || b.channel?.startsWith('lts~')) {
                     return 1
                 }
                 else {
@@ -178,14 +181,13 @@ export class FriCASNotebookFeature {
             const minorMatchVersions = Array.from(this._controllers.entries())
                 .filter(([_, fricasExec]) => {
                     const v1 = fricasExec.getVersion()
-                    const v2 = semver.parse(version)
-                    return v1.major === v2.major && v1.minor === v2.minor
+                    return v1 !== null && v1.major === parsedTargetVersion.major && v1.minor === parsedTargetVersion.minor
                 })
                 .sort(([_, a], [__, b]) => {
                     const aVer = a.getVersion()
                     const bVer = b.getVersion()
-                    if (aVer.patch !== bVer.patch) {
-                        return b.getVersion().patch - a.getVersion().patch
+                    if (aVer && bVer && aVer.patch !== bVer.patch) {
+                        return bVer.patch - aVer.patch
                     } else if (a.officialChannel !== b.officialChannel) {
                         // First, we give preference to official releases, rather than linked fricasup channels
                         return a.officialChannel ? -1 : 1
@@ -242,6 +244,7 @@ export class FriCASNotebookFeature {
         }
 
         const currentKernel = this.kernels.get(notebook)
+        if (!currentKernel) { return }
 
         for (const cell of cells) {
             await currentKernel.queueCell(cell)
@@ -260,8 +263,7 @@ export class FriCASNotebookFeature {
     private getNotebookLanguageVersion(
         notebook: vscode.NotebookDocument
     ): string {
-        const metadata = (notebook.metadata as JupyterNotebookMetadata)?.custom
-            .metadata
+        const metadata = (notebook.metadata as JupyterNotebookMetadata)?.custom?.metadata
         const version = metadata?.language_info?.version || ''
         return this.isFriCASNotebook(notebook) ? version : ''
     }
@@ -297,7 +299,7 @@ export class FriCASNotebookFeature {
         return (
             (
                 notebook.metadata as JupyterNotebookMetadata
-            )?.custom.metadata?.language_info?.name?.toLocaleLowerCase() === 'fricas'
+            )?.custom?.metadata?.language_info?.name?.toLocaleLowerCase() === 'fricas'
         )
     }
 
@@ -309,7 +311,7 @@ export class FriCASNotebookFeature {
             this.context.extensionPath,
             controller,
             notebook,
-            this._controllers.get(controller),
+            this._controllers.get(controller)!,
             this._outputChannel,
             this
         )
